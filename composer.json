@@ -1,6 +1,6 @@
 {
     "name": "ezappslab/laravel-evolver",
-    "description": "...",
+    "description": "Manage installation and upgrade sequences through a series of actions",
     "type": "library",
     "require": {
         "spatie/laravel-package-tools": "^1.16",
