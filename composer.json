@@ -21,7 +21,8 @@
     "license": "MIT",
     "autoload": {
         "psr-4": {
-            "Infinity\\Evolver\\": "src/"
+            "Infinity\\Evolver\\": "src/",
+            "Infinity\\Evolver\\Tests\\": "tests/"
         }
     },
     "authors": [

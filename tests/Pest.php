@@ -11,7 +11,7 @@
 |
 */
 
-// uses(Tests\TestCase::class)->in('Feature');
+uses(\Infinity\Evolver\Tests\TestCase::class)->in('Feature');
 
 /*
 |--------------------------------------------------------------------------
