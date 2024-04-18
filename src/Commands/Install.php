@@ -25,6 +25,13 @@ class Install extends Command
      */
     public function handle()
     {
-        $this->info('Installed');
+        $this->info('Installing the application...');
+
+        $actions = config('config.evolver.install', []);
+        foreach ($actions as $action) {
+            app($action)->execute($this);
+        }
+
+        $this->info('Application installed.');
     }
 }

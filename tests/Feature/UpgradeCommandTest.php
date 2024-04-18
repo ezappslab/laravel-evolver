@@ -1,7 +1,7 @@
 <?php
 
-it('executes Upgrade command', function () {
+it('executes upgrade command', function () {
     $this->artisan('app:upgrade')
         ->assertSuccessful()
-        ->expectsOutput('Upgraded');
+        ->expectsOutputToContain('upgraded');
 });

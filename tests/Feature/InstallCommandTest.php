@@ -1,7 +1,7 @@
 <?php
 
-it('executes Install command', function () {
+it('executes install command', function () {
     $this->artisan('app:install')
         ->assertSuccessful()
-        ->expectsOutput('Installed');
+        ->expectsOutputToContain('installed');
 });

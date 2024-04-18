@@ -25,6 +25,13 @@ class Upgrade extends Command
      */
     public function handle()
     {
-        $this->info('Upgraded');
+        $this->info('Installing the application...');
+
+        $actions = config('config.evolver.upgrade', []);
+        foreach ($actions as $action) {
+            app($action)->execute($this);
+        }
+
+        $this->info('Application upgraded.');
     }
 }

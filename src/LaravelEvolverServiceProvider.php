@@ -19,15 +19,15 @@ class LaravelEvolverServiceProvider extends PackageServiceProvider
                 Upgrade::class,
             ])
             ->hasConfigFile()
-            ->hasInstallCommand(function(InstallCommand $command) {
+            ->hasInstallCommand(function (InstallCommand $command) {
                 $command
-                    ->startWith(function(InstallCommand $command) {
+                    ->startWith(function (InstallCommand $command) {
                         $command->info('Publishing the configuration file...');
                     })
                     ->publishConfigFile()
-                    ->endWith(function(InstallCommand $command) {
+                    ->endWith(function (InstallCommand $command) {
                         $command->info('Configuration file published');
                     });
-        });
+            });
     }
 }
