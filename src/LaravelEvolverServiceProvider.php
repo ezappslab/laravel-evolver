@@ -10,6 +10,12 @@ use Spatie\LaravelPackageTools\PackageServiceProvider;
 
 class LaravelEvolverServiceProvider extends PackageServiceProvider
 {
+    /**
+     * Configure the package service provider class.
+     *
+     * @param Package $package
+     * @return void
+     */
     public function configurePackage(Package $package): void
     {
         $package

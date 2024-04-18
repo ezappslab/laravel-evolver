@@ -18,7 +18,7 @@ class Install extends Command
      *
      * @var string
      */
-    protected $description = 'Command description';
+    protected $description = 'Setting up the project for initial use';
 
     /**
      * Execute the console command.

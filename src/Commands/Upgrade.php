@@ -18,7 +18,7 @@ class Upgrade extends Command
      *
      * @var string
      */
-    protected $description = 'Command description';
+    protected $description = 'Applying necessary compatibility adjustments';
 
     /**
      * Execute the console command.
