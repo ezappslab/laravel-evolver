@@ -5,6 +5,7 @@ namespace Infinity\Evolver\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+
 use function Illuminate\Filesystem\join_paths;
 use function Laravel\Prompts\text;
 
@@ -29,7 +30,7 @@ class MakeEvolverAction extends Command
      */
     public function handle()
     {
-        $stub = File::get(__DIR__ . "/../../stubs/Action.stub");
+        $stub = File::get(__DIR__.'/../../stubs/Action.stub');
 
         $name = $this->argument('name') ?? text(
             label: 'Action name?',

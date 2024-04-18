@@ -12,9 +12,6 @@ class CreateDefaultUser implements Actionable
 
     /**
      * This method is specifically designed to create a default user in the application's database.
-     *
-     * @param Command $command
-     * @return void
      */
     public function execute(Command $command): void
     {
@@ -23,7 +20,7 @@ class CreateDefaultUser implements Actionable
         $user = new $this->userModelClass([
             'name' => 'John Doe',
             'email' => 'john@example.com',
-            'password' => Hash::make('password')
+            'password' => Hash::make('password'),
         ]);
 
         $user->save();

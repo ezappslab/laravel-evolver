@@ -3,6 +3,7 @@
 namespace Infinity\Evolver;
 
 use Infinity\Evolver\Commands\Install;
+use Infinity\Evolver\Commands\MakeEvolverAction;
 use Infinity\Evolver\Commands\Upgrade;
 use Spatie\LaravelPackageTools\Commands\InstallCommand;
 use Spatie\LaravelPackageTools\Package;
@@ -12,9 +13,6 @@ class LaravelEvolverServiceProvider extends PackageServiceProvider
 {
     /**
      * Configure the package service provider class.
-     *
-     * @param Package $package
-     * @return void
      */
     public function configurePackage(Package $package): void
     {
@@ -23,6 +21,7 @@ class LaravelEvolverServiceProvider extends PackageServiceProvider
             ->hasCommands([
                 Install::class,
                 Upgrade::class,
+                MakeEvolverAction::class,
             ])
             ->hasConfigFile()
             ->publishesServiceProvider(LaravelEvolverServiceProvider::class)
