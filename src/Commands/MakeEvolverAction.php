@@ -30,8 +30,6 @@ class MakeEvolverAction extends Command
      */
     public function handle()
     {
-        $stub = File::get(__DIR__.'/../../stubs/Action.stub');
-
         $name = $this->argument('name') ?? text(
             label: 'Action name?',
             placeholder: 'E.g. CreateDefaultUser',
@@ -39,7 +37,10 @@ class MakeEvolverAction extends Command
             hint: 'This will be the name of the new action.',
         );
 
+        $stub = File::get(__DIR__.'/../../stubs/Action.stub');
         $stub = Str::replace('{{action}}', $name, $stub);
+
+        File::ensureDirectoryExists(app_path('Actions'));
 
         File::put(join_paths(app_path(), 'Actions', sprintf('%s.php', $name)), $stub);
     }
