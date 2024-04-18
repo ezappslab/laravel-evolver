@@ -4,6 +4,7 @@ namespace Infinity\Evolver;
 
 use Infinity\Evolver\Commands\Install;
 use Infinity\Evolver\Commands\Upgrade;
+use Spatie\LaravelPackageTools\Commands\InstallCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -17,6 +18,16 @@ class LaravelEvolverServiceProvider extends PackageServiceProvider
                 Install::class,
                 Upgrade::class,
             ])
-            ->hasConfigFile();
+            ->hasConfigFile()
+            ->hasInstallCommand(function(InstallCommand $command) {
+                $command
+                    ->startWith(function(InstallCommand $command) {
+                        $command->info('Publishing the configuration file...');
+                    })
+                    ->publishConfigFile()
+                    ->endWith(function(InstallCommand $command) {
+                        $command->info('Configuration file published');
+                    });
+        });
     }
 }
