@@ -27,7 +27,7 @@ class Upgrade extends Command
     {
         $this->info('Installing the application...');
 
-        $actions = config('config.evolver.upgrade', []);
+        $actions = config('evolver.upgrade', []);
         foreach ($actions as $action) {
             app($action)->execute($this);
         }
