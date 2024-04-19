@@ -5,7 +5,6 @@ namespace Infinity\Evolver\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
-
 use function Illuminate\Filesystem\join_paths;
 use function Laravel\Prompts\text;
 
@@ -37,7 +36,7 @@ class MakeEvolverAction extends Command
             hint: 'This will be the name of the new action.',
         );
 
-        $stub = File::get(__DIR__.'/../../stubs/Action.stub');
+        $stub = File::get(evolver_path('stubs/Action.stub'));
         $stub = Str::replace('{{action}}', $name, $stub);
 
         File::ensureDirectoryExists(app_path('Actions'));

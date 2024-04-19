@@ -2,6 +2,11 @@
     "name": "ezappslab/laravel-evolver",
     "description": "Manage installation and upgrade sequences through a series of actions",
     "type": "library",
+    "authors": [
+        {
+            "name": "Rado Boydev"
+        }
+    ],
     "require": {
         "spatie/laravel-package-tools": "^1.16",
         "illuminate/contracts": "^10.0|^11.0"
@@ -21,16 +26,14 @@
     },
     "license": "MIT",
     "autoload": {
+        "files": [
+            "src/helpers.php"
+        ],
         "psr-4": {
             "Infinity\\Evolver\\": "src/",
             "Infinity\\Evolver\\Tests\\": "tests/"
         }
     },
-    "authors": [
-        {
-            "name": "Rado Boydev"
-        }
-    ],
     "config": {
         "sort-packages": true,
         "allow-plugins": {
@@ -43,6 +46,13 @@
             "Workbench\\App\\": "workbench/app/",
             "Workbench\\Database\\Factories\\": "workbench/database/factories/",
             "Workbench\\Database\\Seeders\\": "workbench/database/seeders/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Infinity\\Evolver\\LaravelEvolverServiceProvider"
+            ]
         }
     },
     "scripts": {

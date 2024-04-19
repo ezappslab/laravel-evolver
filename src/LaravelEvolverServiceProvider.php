@@ -24,7 +24,6 @@ class LaravelEvolverServiceProvider extends PackageServiceProvider
                 MakeEvolverAction::class,
             ])
             ->hasConfigFile()
-            ->publishesServiceProvider(LaravelEvolverServiceProvider::class)
             ->hasInstallCommand(function (InstallCommand $command) {
                 $command->publishConfigFile();
             });
