@@ -41,7 +41,13 @@ final readonly class VersionTracking
      */
     public static function fromConfig(): VersionTracking
     {
-        return new VersionTracking(config('app.version', '0.0.0'));
+        $versionKey = config('evolver.version_key');
+
+        if (is_null($versionKey)) {
+            throw new RuntimeException('Missing version key in the `evolver` config file');
+        }
+
+        return new VersionTracking(config($versionKey));
     }
 
     /**

@@ -4,6 +4,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Version detection type
+    |--------------------------------------------------------------------------
+    |
+    | Users can specify a versioning detection method: 'config'
+    | or 'version_control'. The 'config' option loads the version
+    | from the 'version_key' in the config file. The 'version_control'
+    | option retrieves the version directly from version control tags.
+    |
+    */
+
+    'versioning_mode' => 'config',
+
+    'version_key' => 'app.version',
+
+    /*
+    |--------------------------------------------------------------------------
     | Install actions
     |--------------------------------------------------------------------------
     |

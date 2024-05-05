@@ -70,6 +70,21 @@ php artisan app:upgrade
 
 These commands will run the respective actions in the order they are defined in the evolver.php configuration file.
 
+## Utilities
+
+When installing or upgrading the application, it is crucial to detect the version using the Versioning helper.
+
+```php
+use Infinity\Evolver\Facades\Versioning;
+
+Versioning::isEqual(string $version)
+Versioning::isNotEqual(string $version)
+Versioning::isLessThan(string $version)
+Versioning::isLessThanOrEqual(string $version)
+Versioning::isGreaterThan(string $version)
+Versioning::isGreaterThanOrEqual(string $version)
+```
+
 ## Contributing
 
 Contributions to the Evolver package are welcome. Please ensure that any pull requests are compliant with Laravel's standards and are accompanied by the necessary tests.
