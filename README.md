@@ -85,6 +85,12 @@ Versioning::isGreaterThan(string $version)
 Versioning::isGreaterThanOrEqual(string $version)
 ```
 
+To simplify usage, register the Facade in the Facades array:
+
+```php
+'Versioning' => Infinity\Evolver\Facades\Versioning::class
+```
+
 ## Contributing
 
 Contributions to the Evolver package are welcome. Please ensure that any pull requests are compliant with Laravel's standards and are accompanied by the necessary tests.
