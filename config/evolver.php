@@ -32,6 +32,8 @@ return [
 
     'install' => [
         \Infinity\Evolver\Actions\CreateDefaultUser::class,
+        \Infinity\Evolver\Actions\ReplaceVersionKey::class,
+        \Infinity\Evolver\Actions\ReplaceUserModel::class,
 
         // ...
 
