@@ -2,6 +2,8 @@
 
 return [
 
+    'version' => '1.0.0',
+
     /*
     |--------------------------------------------------------------------------
     | Version detection type
@@ -16,7 +18,7 @@ return [
 
     'versioning_mode' => 'config',
 
-    'version_key' => 'app.version',
+    'version_key' => 'evolver.version',
 
     /*
     |--------------------------------------------------------------------------
