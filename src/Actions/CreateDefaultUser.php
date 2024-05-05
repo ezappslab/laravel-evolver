@@ -8,8 +8,6 @@ use Infinity\Evolver\Contracts\Actionable;
 
 class CreateDefaultUser implements Actionable
 {
-    protected string $userModelClass = 'App\\Models\\User';
-
     /**
      * This method is specifically designed to create a default user in the application's database.
      */
@@ -17,7 +15,9 @@ class CreateDefaultUser implements Actionable
     {
         $command->info('Creating default user...');
 
-        $user = new $this->userModelClass([
+        $userModel = config('evolver.user_model');
+
+        $user = new $userModel([
             'name' => 'John Doe',
             'email' => 'john@example.com',
             'password' => Hash::make('password'),

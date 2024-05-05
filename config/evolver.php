@@ -35,6 +35,8 @@ return [
 
     ],
 
+    'user_model' => App\Models\User::class,
+
     /*
     |--------------------------------------------------------------------------
     | Upgrade actions
