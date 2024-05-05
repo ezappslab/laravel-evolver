@@ -73,6 +73,6 @@
             "@php vendor/bin/phpstan analyse"
         ]
     },
-    "minimum-stability": "dev",
+    "minimum-stability": "stable",
     "prefer-stable": true
 }
