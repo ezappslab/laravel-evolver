@@ -19,8 +19,21 @@ abstract class TestCase extends BaseTestCase
         ];
     }
 
+    /**
+     * Define environment setup.
+     *
+     * @param  \Illuminate\Foundation\Application  $app
+     */
     protected function getEnvironmentSetUp($app): void
     {
+        // Setup default database to use sqlite :memory:
+        $app['config']->set('database.default', 'testbench');
+        $app['config']->set('database.connections.testbench', [
+            'driver' => 'sqlite',
+            'database' => ':memory:',
+            'prefix' => '',
+        ]);
+
         // Overriding default User model for tests
         $app['config']->set('evolver.user_model', User::class);
     }
