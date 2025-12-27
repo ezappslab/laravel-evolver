@@ -1,0 +1,40 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('evolutions', function (Blueprint $table) {
+            $table->id();
+            $table->uuid('batch_id')->index();
+            $table->string('action_id')->index();
+            $table->string('checksum', 64);
+            $table->string('status')->index();
+            $table->string('introduced_in')->nullable();
+            $table->string('required_until')->nullable();
+            $table->string('target_version');
+            $table->integer('duration_ms');
+            $table->longText('exception')->nullable();
+            $table->timestamp('ran_at')->nullable();
+            $table->timestamps();
+
+            $table->index(['action_id', 'status']);
+        });
+
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('evolutions');
+    }
+};

@@ -1,0 +1,34 @@
+<?php
+
+use Infinity\Evolver\Contracts\Action;
+
+return new class extends Action
+{
+    /**
+     * Retrieve the version or context where the subject was introduced.
+     *
+     * @return string|null Returns the version as a string, or null if unavailable.
+     */
+    public function introducedIn(): ?string
+    {
+        return '0.0.1';
+    }
+
+    /**
+     * Retrieves the version until which the action is required.
+     *
+     * @return string|null The upper version bound as a string, or null if not set.
+     */
+    public function requiredUntil(): ?string
+    {
+        return '1.0.0';
+    }
+
+    /**
+     * Execute the action.
+     */
+    public function handle(): void
+    {
+        //
+    }
+};
