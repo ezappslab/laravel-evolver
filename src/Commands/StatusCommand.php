@@ -37,14 +37,14 @@ class StatusCommand extends Command
     ): int {
         $currentVersion = $versionManager->current();
         $currentValue = $currentVersion?->value() ?? 'None';
-        $this->info("Current Version: <comment>{$currentValue}</comment>");
+        $this->components->info("Current Version: <comment>{$currentValue}</comment>");
 
         try {
             $targetVersion = $versionManager->targetRequired();
             $targetValue = $targetVersion?->value() ?? 'None';
-            $this->info("Target Version: <comment>{$targetValue}</comment>");
+            $this->components->info("Target Version: <comment>{$targetValue}</comment>");
         } catch (\Exception $e) {
-            $this->info('Target Version: <comment>None</comment>');
+            $this->components->info('Target Version: <comment>None</comment>');
         }
 
         $this->newLine();
@@ -65,7 +65,7 @@ class StatusCommand extends Command
             'status' => $s['status'],
             'duration' => $runs[$s['descriptor']->actionId]['duration_ms'] ?? null,
             'batch_id' => $runs[$s['descriptor']->actionId]['batch_id'] ?? null,
-        ]);
+        ])->all();
 
         $all = $toRun->concat($skipped)->sortBy('id');
 

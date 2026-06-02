@@ -96,7 +96,7 @@ class DeployCommand extends Command
             'status' => $s['status'],
             'duration' => $runs[$s['descriptor']->actionId]['duration_ms'] ?? null,
             'batch_id' => $runs[$s['descriptor']->actionId]['batch_id'] ?? null,
-        ]);
+        ])->all();
 
         $all = $toRun->concat($skipped)->sortBy('id');
 
@@ -138,15 +138,15 @@ class DeployCommand extends Command
             'status' => $s['status'],
             'duration' => $allRuns[$s['descriptor']->actionId]['duration_ms'] ?? null,
             'batch_id' => $allRuns[$s['descriptor']->actionId]['batch_id'] ?? null,
-        ]);
+        ])->all();
 
         $all = $toRun->concat($skipped)->sortBy('id');
 
         $this->displayActions($all->all());
 
-        $this->info("Batch ID: <comment>{$result->batchId}</comment>");
+        $this->components->info("Batch ID: <comment>{$result->batchId}</comment>");
         $targetValue = $result->targetVersion->value() ?? 'None';
-        $this->info("Target Version: <comment>{$targetValue}</comment>");
+        $this->components->info("Target Version: <comment>{$targetValue}</comment>");
     }
 
     /**

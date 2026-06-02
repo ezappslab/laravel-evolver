@@ -1,5 +1,7 @@
 <?php
 
+use Infinity\Evolver\EvolverServiceProvider;
+
 return [
-    \Infinity\Evolver\EvolverServiceProvider::class,
+    EvolverServiceProvider::class,
 ];

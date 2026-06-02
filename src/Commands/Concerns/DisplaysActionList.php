@@ -49,7 +49,7 @@ trait DisplaysActionList
     protected function actionStatusLabel(ActionStatus $status): string
     {
         return match ($status) {
-            ActionStatus::AlreadyRan, ActionStatus::Success => 'Ran',
+            ActionStatus::AlreadyRan, ActionStatus::Success => 'Completed',
             ActionStatus::Pending => 'Pending',
             ActionStatus::OutOfRange => 'Out of range',
             ActionStatus::Changed => 'Changed',
