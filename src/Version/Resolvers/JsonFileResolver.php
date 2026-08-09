@@ -8,6 +8,7 @@ use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Support\Facades\File;
 use Infinity\Evolver\Contracts\VersionResolver;
 use Infinity\Evolver\Exceptions\VersionResolutionException;
+use JsonException;
 
 final class JsonFileResolver implements VersionResolver
 {
@@ -30,12 +31,10 @@ final class JsonFileResolver implements VersionResolver
             return null;
         }
 
-        $content = File::get($this->path);
-
-        $data = json_decode($content, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new VersionResolutionException("Invalid JSON in file: {$this->path}");
+        try {
+            $data = File::json($this->path, JSON_THROW_ON_ERROR);
+        } catch (JsonException $exception) {
+            throw new VersionResolutionException("Invalid JSON in file: {$this->path}", $exception);
         }
 
         $value = data_get($data, $this->key);

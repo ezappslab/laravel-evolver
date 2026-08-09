@@ -25,10 +25,10 @@ final class DeploymentPlan
      */
     public function pending(): array
     {
-        return array_values(array_filter(
-            $this->actions,
-            static fn (ActionPlan $action): bool => $action->status === ActionStatus::Pending,
-        ));
+        return collect($this->actions)
+            ->filter(static fn (ActionPlan $action): bool => $action->status === ActionStatus::Pending)
+            ->values()
+            ->all();
     }
 
     /**
@@ -46,11 +46,13 @@ final class DeploymentPlan
      */
     public function only(array $actionIds): self
     {
+        $identities = collect($actionIds);
+
         return new self(
-            array_values(array_filter(
-                $this->actions,
-                static fn (ActionPlan $action): bool => in_array($action->descriptor->actionId, $actionIds, true),
-            )),
+            collect($this->actions)
+                ->filter(static fn (ActionPlan $action): bool => $identities->containsStrict($action->descriptor->actionId))
+                ->values()
+                ->all(),
             $this->targetVersion,
         );
     }

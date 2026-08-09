@@ -6,7 +6,6 @@ namespace Infinity\Evolver\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Str;
 use RuntimeException;
 
 final class ActionMakeCommand extends Command
@@ -31,7 +30,7 @@ final class ActionMakeCommand extends Command
     public function handle(): int
     {
         $input = (string) $this->argument('name');
-        $class = Str::studly($input);
+        $class = str($input)->studly()->value();
 
         if ($class === '' || ! preg_match('/^[A-Z][A-Za-z0-9]*$/', $class)) {
             $this->components->error('The action name must produce a valid PHP class name.');
@@ -41,7 +40,7 @@ final class ActionMakeCommand extends Command
 
         $directory = (string) config('evolver.actions_path', base_path('deploy/actions'));
         File::ensureDirectoryExists($directory);
-        $filename = now()->format('Y_m_d_His').'_'.Str::snake($class).'.php';
+        $filename = now()->format('Y_m_d_His').'_'.str($class)->snake().'.php';
         $path = $directory.DIRECTORY_SEPARATOR.$filename;
 
         if (File::exists($path)) {

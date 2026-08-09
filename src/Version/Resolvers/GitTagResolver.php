@@ -23,11 +23,11 @@ final class GitTagResolver implements VersionResolver
     {
         $tag = $this->getLatestTag();
 
-        if (! $tag) {
+        if (blank($tag)) {
             return null;
         }
 
-        if ($this->stripPrefix && str($tag)->startsWith($this->stripPrefix)) {
+        if (filled($this->stripPrefix) && str($tag)->startsWith($this->stripPrefix)) {
             return str($tag)->after($this->stripPrefix)->value();
         }
 
@@ -45,6 +45,8 @@ final class GitTagResolver implements VersionResolver
             return null;
         }
 
-        return str($result->output())->trim()->value() ?: null;
+        $tag = str($result->output())->trim()->value();
+
+        return filled($tag) ? $tag : null;
     }
 }

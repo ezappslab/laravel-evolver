@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infinity\Evolver\Deploy\Planning;
 
+use Illuminate\Support\Arr;
 use Infinity\Evolver\Contracts\EvolutionRepository;
 use Infinity\Evolver\Contracts\Version;
 use Infinity\Evolver\Exceptions\ActionChangedException;
@@ -36,7 +37,7 @@ final class Planner
             $introducedIn = $action->introducedIn();
             $requiredUntil = $action->requiredUntil();
 
-            if (array_key_exists($descriptor->actionId, $executed)) {
+            if (Arr::exists($executed, $descriptor->actionId)) {
                 if ($this->failOnChangedAction && $executed[$descriptor->actionId] !== $descriptor->checksum) {
                     throw new ActionChangedException(
                         $descriptor->actionId,
