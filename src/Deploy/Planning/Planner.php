@@ -7,6 +7,7 @@ namespace Infinity\Evolver\Deploy\Planning;
 use Illuminate\Support\Arr;
 use Infinity\Evolver\Contracts\EvolutionRepository;
 use Infinity\Evolver\Exceptions\ActionChangedException;
+use Infinity\Evolver\Exceptions\VersionResolutionException;
 use Infinity\Evolver\Version\SemanticVersion;
 use Infinity\Evolver\Version\VersionManager;
 
@@ -55,7 +56,7 @@ final class Planner
 
                 $status = ActionStatus::Executed;
             } else {
-                $status = $this->isApplicable($introducedIn, $requiredUntil, $target)
+                $status = $this->isApplicable($introducedIn, $requiredUntil, $target, $descriptor)
                     ? ActionStatus::Pending
                     : ActionStatus::NotApplicable;
             }
@@ -75,8 +76,12 @@ final class Planner
     /**
      * Determine whether an unexecuted action applies to the target version.
      */
-    private function isApplicable(?string $introducedIn, ?string $requiredUntil, ?SemanticVersion $target): bool
-    {
+    private function isApplicable(
+        ?string $introducedIn,
+        ?string $requiredUntil,
+        ?SemanticVersion $target,
+        ActionDescriptor $descriptor,
+    ): bool {
         if (! $this->versions->filtersActions()) {
             return true;
         }
@@ -85,10 +90,36 @@ final class Planner
             return false;
         }
 
-        if ($introducedIn !== null && $target->isLessThan($this->versions->parse($introducedIn))) {
+        if ($introducedIn !== null && $target->isLessThan($this->parseActionVersion(
+            $introducedIn,
+            'introducedIn',
+            $descriptor,
+        ))) {
             return false;
         }
 
-        return $requiredUntil === null || $target->isLessThan($this->versions->parse($requiredUntil));
+        return $requiredUntil === null || $target->isLessThan($this->parseActionVersion(
+            $requiredUntil,
+            'requiredUntil',
+            $descriptor,
+        ));
+    }
+
+    /**
+     * Parse action version metadata with its source in any failure message.
+     */
+    private function parseActionVersion(
+        string $version,
+        string $field,
+        ActionDescriptor $descriptor,
+    ): SemanticVersion {
+        try {
+            return $this->versions->parse($version);
+        } catch (VersionResolutionException $exception) {
+            throw new VersionResolutionException(
+                "Invalid {$field} version [{$version}] for action [{$descriptor->actionId}] at [{$descriptor->path}].",
+                $exception,
+            );
+        }
     }
 }

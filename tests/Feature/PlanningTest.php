@@ -8,6 +8,7 @@ use Infinity\Evolver\Deploy\Planning\ActionMaterializer;
 use Infinity\Evolver\Deploy\Planning\ActionStatus;
 use Infinity\Evolver\Deploy\Planning\Planner;
 use Infinity\Evolver\Exceptions\ActionChangedException;
+use Infinity\Evolver\Exceptions\VersionResolutionException;
 use Infinity\Evolver\Version\VersionManager;
 use Infinity\Evolver\Version\VersionStrategy;
 
@@ -109,6 +110,30 @@ test('planner rejects a changed committed action', function () {
         $versions,
     )->plan())->toThrow(ActionChangedException::class);
 });
+
+test('planner identifies the action and field containing invalid version metadata', function (string $field) {
+    $introduced = $field === 'introducedIn' ? 'invalid' : null;
+    $until = $field === 'requiredUntil' ? 'invalid' : null;
+    writePlanningAction($this->actionsPath, 'invalid_version_action', $introduced, $until);
+
+    $versions = new VersionManager(
+        VersionStrategy::Config,
+        new class implements VersionResolver
+        {
+            public function resolve(): ?string
+            {
+                return '1.0.0';
+            }
+        },
+        true,
+    );
+
+    expect(fn () => plannerFor($this->actionsPath, planningRepository(), $versions)->plan())
+        ->toThrow(
+            VersionResolutionException::class,
+            "Invalid {$field} version [invalid] for action [invalid_version_action]",
+        );
+})->with(['introducedIn', 'requiredUntil']);
 
 test('discovery ignores non php files and missing directories', function () {
     File::put($this->actionsPath.'/ignored.txt', 'x');

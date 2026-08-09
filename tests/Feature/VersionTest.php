@@ -1,7 +1,10 @@
 <?php
 
+use Illuminate\Process\PendingProcess;
+use Illuminate\Support\Facades\Process;
 use Infinity\Evolver\Contracts\VersionResolver;
 use Infinity\Evolver\Exceptions\VersionResolutionException;
+use Infinity\Evolver\Version\Resolvers\GitTagResolver;
 use Infinity\Evolver\Version\SemanticVersion;
 use Infinity\Evolver\Version\VersionManager;
 use Infinity\Evolver\Version\VersionStrategy;
@@ -88,3 +91,11 @@ test('semantic version precedence follows the semver specification', function (s
     ['1.0.0-beta.11', '1.0.0-rc.1'],
     ['1.0.0-rc.1', '1.0.0'],
 ]);
+
+test('git strategy resolves tags from the Laravel base path', function () {
+    Process::fake(['git describe --tags --abbrev=0' => Process::result(output: "v2.3.4\n")]);
+
+    expect((new GitTagResolver)->resolve())->toBe('2.3.4');
+
+    Process::assertRan(fn (PendingProcess $process): bool => $process->path === base_path());
+});

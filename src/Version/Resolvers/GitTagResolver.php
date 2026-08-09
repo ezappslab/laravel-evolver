@@ -39,7 +39,7 @@ final class GitTagResolver implements VersionResolver
      */
     private function getLatestTag(): ?string
     {
-        $result = Process::run('git describe --tags --abbrev=0');
+        $result = Process::path(base_path())->run('git describe --tags --abbrev=0');
 
         if ($result->failed()) {
             return null;
