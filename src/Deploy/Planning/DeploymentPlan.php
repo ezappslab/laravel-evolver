@@ -30,4 +30,28 @@ final class DeploymentPlan
             static fn (ActionPlan $action): bool => $action->status === ActionStatus::Pending,
         ));
     }
+
+    /**
+     * Create a plan containing only pending actions.
+     */
+    public function executable(): self
+    {
+        return new self($this->pending(), $this->targetVersion);
+    }
+
+    /**
+     * Create a plan containing only the given action identities.
+     *
+     * @param  list<string>  $actionIds
+     */
+    public function only(array $actionIds): self
+    {
+        return new self(
+            array_values(array_filter(
+                $this->actions,
+                static fn (ActionPlan $action): bool => in_array($action->descriptor->actionId, $actionIds, true),
+            )),
+            $this->targetVersion,
+        );
+    }
 }

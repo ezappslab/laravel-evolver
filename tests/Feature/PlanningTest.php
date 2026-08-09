@@ -79,7 +79,9 @@ test('planner discovers materializes statuses and orders every action determinis
     ])->and(array_map(fn ($item) => $item->status, $plan->actions))->toBe([
         ActionStatus::Executed, ActionStatus::NotApplicable, ActionStatus::Pending,
     ])->and($plan->pending())->toHaveCount(1)
-        ->and($plan->pending()[0]->action)->toBe($plan->actions[2]->action);
+        ->and($plan->pending()[0]->action)->toBe($plan->actions[2]->action)
+        ->and($plan->executable()->actions)->toBe([$plan->actions[2]])
+        ->and($plan->only(['2026_01_executed'])->actions)->toBe([$plan->actions[0]]);
 });
 
 test('none strategy makes every unexecuted action pending in natural order', function () {

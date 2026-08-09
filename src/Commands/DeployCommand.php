@@ -43,7 +43,7 @@ final class DeployCommand extends Command
 
         if ((bool) $this->option('dry-run')) {
             $this->components->info('Dry run: no actions will be executed.');
-            $this->displayPlan($deployer->plan());
+            $this->displayPlan($deployer->plan()->executable());
 
             return self::SUCCESS;
         }
@@ -61,7 +61,7 @@ final class DeployCommand extends Command
             return self::FAILURE;
         }
 
-        $this->displayPlan($result->plan);
+        $this->displayPlan($result->plan->only($result->execution->committedActionIds));
         $this->components->info('Committed '.count($result->execution->committedActionIds).' action(s).');
         $this->components->info("Batch ID: {$result->execution->batchId}");
 
