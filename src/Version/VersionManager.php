@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Infinity\Evolver\Version;
 
-use Infinity\Evolver\Contracts\Version;
 use Infinity\Evolver\Contracts\VersionResolver;
 use Infinity\Evolver\Exceptions\VersionResolutionException;
 
@@ -30,7 +29,7 @@ final class VersionManager
     /**
      * Resolve and parse the target application version.
      */
-    public function target(): ?Version
+    public function target(): ?SemanticVersion
     {
         if ($this->strategy === VersionStrategy::None) {
             return null;
@@ -60,7 +59,7 @@ final class VersionManager
     /**
      * Parse a semantic version value.
      */
-    public function parse(string $version): Version
+    public function parse(string $version): SemanticVersion
     {
         return SemanticVersion::parse($version);
     }

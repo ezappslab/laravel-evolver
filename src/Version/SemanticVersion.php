@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Infinity\Evolver\Version;
 
-use Infinity\Evolver\Contracts\Version as VersionContract;
-
-final class SemanticVersion implements VersionContract
+final class SemanticVersion
 {
     /**
      * The normalized semantic version value.
@@ -40,27 +38,11 @@ final class SemanticVersion implements VersionContract
     }
 
     /**
-     * Compare the version with another version.
-     */
-    public function compareTo(VersionContract $other): int
-    {
-        return version_compare($this->value(), $other->value());
-    }
-
-    /**
-     * Determine if the version is greater than or equal to another version.
-     */
-    public function isGreaterThanOrEqual(VersionContract $other): bool
-    {
-        return $this->compareTo($other) >= 0;
-    }
-
-    /**
      * Determine if the version is less than another version.
      */
-    public function isLessThan(VersionContract $other): bool
+    public function isLessThan(self $other): bool
     {
-        return $this->compareTo($other) < 0;
+        return version_compare($this->value(), $other->value()) < 0;
     }
 
     /**

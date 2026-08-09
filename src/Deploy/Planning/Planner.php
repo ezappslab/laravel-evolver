@@ -6,8 +6,8 @@ namespace Infinity\Evolver\Deploy\Planning;
 
 use Illuminate\Support\Arr;
 use Infinity\Evolver\Contracts\EvolutionRepository;
-use Infinity\Evolver\Contracts\Version;
 use Infinity\Evolver\Exceptions\ActionChangedException;
+use Infinity\Evolver\Version\SemanticVersion;
 use Infinity\Evolver\Version\VersionManager;
 
 final class Planner
@@ -69,7 +69,7 @@ final class Planner
     /**
      * Determine whether an unexecuted action applies to the target version.
      */
-    private function isApplicable(?string $introducedIn, ?string $requiredUntil, ?Version $target): bool
+    private function isApplicable(?string $introducedIn, ?string $requiredUntil, ?SemanticVersion $target): bool
     {
         if (! $this->versions->filtersActions()) {
             return true;

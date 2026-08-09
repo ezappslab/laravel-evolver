@@ -19,7 +19,6 @@ final class DatabaseEvolutionRepository implements EvolutionRepository
     {
         /** @var array<string, string> $executed */
         $executed = $this->query()
-            ->orderBy('id')
             ->pluck('checksum', 'action_id')
             ->all();
 

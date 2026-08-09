@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Infinity\Evolver\Deploy\Planning;
 
-use Infinity\Evolver\Contracts\Version;
+use Infinity\Evolver\Version\SemanticVersion;
 
 final class DeploymentPlan
 {
@@ -15,7 +15,7 @@ final class DeploymentPlan
      */
     public function __construct(
         public readonly array $actions,
-        public readonly ?Version $targetVersion,
+        public readonly ?SemanticVersion $targetVersion,
     ) {}
 
     /**
