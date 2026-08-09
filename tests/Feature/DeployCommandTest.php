@@ -1,7 +1,6 @@
 <?php
 
-use Illuminate\Database\ConnectionInterface;
-use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Infinity\Evolver\Version\VersionManager;
 
@@ -21,19 +20,6 @@ beforeEach(function () {
     ]);
     $this->app->forgetInstance(VersionManager::class);
 
-    $this->connection = $this->app->make(ConnectionInterface::class);
-    $schema = $this->connection->getSchemaBuilder();
-    $schema->dropIfExists('evolutions');
-    $schema->create('evolutions', function (Blueprint $table): void {
-        $table->id();
-        $table->uuid('batch_id');
-        $table->string('action_id')->unique();
-        $table->string('checksum', 64);
-        $table->string('target_version')->nullable();
-        $table->unsignedInteger('duration_ms');
-        $table->timestamp('ran_at');
-        $table->timestamps();
-    });
 });
 
 afterEach(function () {
@@ -42,7 +28,7 @@ afterEach(function () {
 });
 
 test('dry run uses normal planning and has no execution side effects', function () {
-    $transactionLevel = $this->connection->transactionLevel();
+    $transactionLevel = DB::connection()->transactionLevel();
 
     $this->artisan('evolver:deploy', ['--dry-run' => true])
         ->expectsOutputToContain('Dry run: no actions will be executed.')
@@ -53,8 +39,8 @@ test('dry run uses normal planning and has no execution side effects', function 
         ->assertSuccessful();
 
     expect(File::exists($this->markerPath))->toBeFalse()
-        ->and($this->connection->table('evolutions')->count())->toBe(0)
-        ->and($this->connection->transactionLevel())->toBe($transactionLevel);
+        ->and(DB::table('evolutions')->count())->toBe(0)
+        ->and(DB::connection()->transactionLevel())->toBe($transactionLevel);
 });
 
 test('deploy command executes and records the pending plan', function () {
@@ -64,5 +50,5 @@ test('deploy command executes and records the pending plan', function () {
         ->assertSuccessful();
 
     expect(File::get($this->markerPath))->toBe('ran')
-        ->and($this->connection->table('evolutions')->value('action_id'))->toBe('001_write_marker');
+        ->and(DB::table('evolutions')->value('action_id'))->toBe('001_write_marker');
 });

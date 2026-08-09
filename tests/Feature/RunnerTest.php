@@ -1,8 +1,7 @@
 <?php
 
-use Illuminate\Database\ConnectionInterface;
 use Illuminate\Database\QueryException;
-use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Infinity\Evolver\Contracts\Action;
 use Infinity\Evolver\Database\DatabaseEvolutionRepository;
 use Infinity\Evolver\Deploy\Planning\ActionDescriptor;
@@ -14,43 +13,21 @@ use Infinity\Evolver\Deploy\Running\TransactionMode;
 use Infinity\Evolver\Exceptions\ActionFailedException;
 use Infinity\Evolver\Version\SemanticVersion;
 
-beforeEach(function () {
-    $this->connection = $this->app->make(ConnectionInterface::class);
-    $schema = $this->connection->getSchemaBuilder();
-    $schema->dropIfExists('evolutions');
-    $schema->dropIfExists('evolver_effects');
-    $schema->create('evolutions', function (Blueprint $table): void {
-        $table->id();
-        $table->uuid('batch_id');
-        $table->string('action_id')->unique();
-        $table->string('checksum', 64);
-        $table->string('target_version')->nullable();
-        $table->unsignedInteger('duration_ms');
-        $table->timestamp('ran_at');
-        $table->timestamps();
-    });
-    $schema->create('evolver_effects', function (Blueprint $table): void {
-        $table->id();
-        $table->string('name');
-    });
-});
-
-function runnerPlan(ConnectionInterface $connection, ?string $failure = null): DeploymentPlan
+function runnerPlan(?string $failure = null): DeploymentPlan
 {
     $plans = [];
 
     foreach (['a', 'b', 'c'] as $id) {
-        $action = new class($connection, $id, $failure === $id) extends Action
+        $action = new class($id, $failure === $id) extends Action
         {
             public function __construct(
-                private readonly ConnectionInterface $connection,
                 private readonly string $name,
                 private readonly bool $fails,
             ) {}
 
             public function handle(): void
             {
-                $this->connection->table('evolver_effects')->insert(['name' => $this->name]);
+                DB::table('evolver_effects')->insert(['name' => $this->name]);
 
                 if ($this->fails) {
                     throw new RuntimeException("{$this->name} failed");
@@ -69,54 +46,54 @@ function runnerPlan(ConnectionInterface $connection, ?string $failure = null): D
     return new DeploymentPlan($plans, SemanticVersion::parse('1.2.3'));
 }
 
-function runMode(ConnectionInterface $connection, TransactionMode $mode, ?string $failure = null): mixed
+function runMode(TransactionMode $mode, ?string $failure = null): mixed
 {
     $runner = new Runner(new DatabaseEvolutionRepository, $mode);
 
-    return $runner->run(runnerPlan($connection, $failure), '00000000-0000-0000-0000-000000000001');
+    return $runner->run(runnerPlan($failure), '00000000-0000-0000-0000-000000000001');
 }
 
 test('none keeps prior effects and records when a later action fails', function () {
     try {
-        runMode($this->connection, TransactionMode::None, 'c');
+        runMode(TransactionMode::None, 'c');
     } catch (ActionFailedException $exception) {
         expect($exception->actionId)->toBe('c')
             ->and($exception->getPrevious()?->getMessage())->toBe('c failed')
             ->and($exception->result->committedActionIds)->toBe(['a', 'b']);
     }
 
-    expect($this->connection->table('evolver_effects')->pluck('name')->all())->toBe(['a', 'b', 'c'])
-        ->and($this->connection->table('evolutions')->pluck('action_id')->all())->toBe(['a', 'b']);
+    expect(DB::table('evolver_effects')->pluck('name')->all())->toBe(['a', 'b', 'c'])
+        ->and(DB::table('evolutions')->pluck('action_id')->all())->toBe(['a', 'b']);
 });
 
 test('per action rolls back the failed action and retains earlier commits', function () {
     try {
-        runMode($this->connection, TransactionMode::PerAction, 'c');
+        runMode(TransactionMode::PerAction, 'c');
     } catch (ActionFailedException $exception) {
         expect($exception->result->committedActionIds)->toBe(['a', 'b']);
     }
 
-    expect($this->connection->table('evolver_effects')->pluck('name')->all())->toBe(['a', 'b'])
-        ->and($this->connection->table('evolutions')->pluck('action_id')->all())->toBe(['a', 'b']);
+    expect(DB::table('evolver_effects')->pluck('name')->all())->toBe(['a', 'b'])
+        ->and(DB::table('evolutions')->pluck('action_id')->all())->toBe(['a', 'b']);
 });
 
 test('entire run failure rolls back all current run work and reports no commits', function () {
     try {
-        runMode($this->connection, TransactionMode::EntireRun, 'c');
+        runMode(TransactionMode::EntireRun, 'c');
     } catch (ActionFailedException $exception) {
         expect($exception->result->committedActionIds)->toBe([]);
     }
 
-    expect($this->connection->table('evolver_effects')->count())->toBe(0)
-        ->and($this->connection->table('evolutions')->count())->toBe(0);
+    expect(DB::table('evolver_effects')->count())->toBe(0)
+        ->and(DB::table('evolutions')->count())->toBe(0);
 });
 
 test('entire run success commits action work and evolution records in order', function () {
-    $result = runMode($this->connection, TransactionMode::EntireRun);
+    $result = runMode(TransactionMode::EntireRun);
 
     expect($result->committedActionIds)->toBe(['a', 'b', 'c'])
-        ->and($this->connection->table('evolver_effects')->pluck('name')->all())->toBe(['a', 'b', 'c'])
-        ->and($this->connection->table('evolutions')->pluck('action_id')->all())->toBe(['a', 'b', 'c']);
+        ->and(DB::table('evolver_effects')->pluck('name')->all())->toBe(['a', 'b', 'c'])
+        ->and(DB::table('evolutions')->pluck('action_id')->all())->toBe(['a', 'b', 'c']);
 });
 
 test('repository prevents duplicate committed identities', function () {

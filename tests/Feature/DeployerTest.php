@@ -1,7 +1,5 @@
 <?php
 
-use Illuminate\Database\ConnectionInterface;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\File;
 use Infinity\Evolver\Deploy\Deployer;
 use Infinity\Evolver\Deploy\Planning\ActionStatus;
@@ -14,20 +12,6 @@ beforeEach(function () {
     File::put($this->actionsPath.'/001_first.php', '<?php return new class extends Infinity\Evolver\Contracts\Action { public function handle(): void {} };');
     config(['evolver.actions_path' => $this->actionsPath, 'evolver.versioning.strategy' => 'none']);
     $this->app->forgetInstance(VersionManager::class);
-
-    $connection = $this->app->make(ConnectionInterface::class);
-    $schema = $connection->getSchemaBuilder();
-    $schema->dropIfExists('evolutions');
-    $schema->create('evolutions', function (Blueprint $table): void {
-        $table->id();
-        $table->uuid('batch_id');
-        $table->string('action_id')->unique();
-        $table->string('checksum', 64);
-        $table->string('target_version')->nullable();
-        $table->unsignedInteger('duration_ms');
-        $table->timestamp('ran_at');
-        $table->timestamps();
-    });
 });
 
 afterEach(fn () => File::deleteDirectory($this->actionsPath));

@@ -34,7 +34,7 @@ final class SemanticVersion implements VersionContract
     /**
      * Get the string representation of the version.
      */
-    public function value(): ?string
+    public function value(): string
     {
         return $this->version;
     }
