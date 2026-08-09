@@ -48,18 +48,10 @@ trait DisplaysActionList
             ActionStatus::NotApplicable => '<fg=gray;options=bold>Not applicable</>',
         };
 
-        $details = [];
-
-        if ($action->introducedIn !== null) {
-            $details[] = "Introduced in: {$action->introducedIn}";
-        }
-
-        if ($action->requiredUntil !== null) {
-            $details[] = "Valid until: {$action->requiredUntil}";
-        }
-
-        $details[] = $status;
-
-        return implode(' / ', $details);
+        return implode(' / ', [
+            $action->introducedIn ?? '-',
+            $action->requiredUntil ?? '-',
+            $status,
+        ]);
     }
 }

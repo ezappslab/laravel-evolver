@@ -13,6 +13,9 @@ test('status displays every planned action and the selected version strategy', f
         public function requiredUntil(): ?string { return "2.0.0"; }
         public function handle(): void {}
     };');
+    File::put($path.'/002_unversioned.php', '<?php return new class extends Infinity\Evolver\Contracts\Action {
+        public function handle(): void {}
+    };');
     config(['evolver.actions_path' => $path, 'evolver.versioning.strategy' => 'none']);
     $this->app->forgetInstance(VersionManager::class);
     expect(Artisan::call('evolver:status'))->toBe(0)
@@ -21,9 +24,9 @@ test('status displays every planned action and the selected version strategy', f
             'Action name',
             'Introduced in / Valid until / Status',
             '001_status',
-            'Introduced in: 1.2.0',
-            'Valid until: 2.0.0',
-            'Pending',
+            '1.2.0 / 2.0.0 / Pending',
+            '002_unversioned',
+            '- / - / Pending',
         );
 
     File::deleteDirectory($path);
