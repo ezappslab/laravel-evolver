@@ -56,4 +56,33 @@ final class DeploymentPlan
             $this->targetVersion,
         );
     }
+
+    /**
+     * Mark the given action identities as successfully executed.
+     *
+     * @param  list<string>  $actionIds
+     */
+    public function markExecuted(array $actionIds): self
+    {
+        $identities = collect($actionIds);
+
+        return new self(
+            collect($this->actions)
+                ->map(static function (ActionPlan $action) use ($identities): ActionPlan {
+                    if (! $identities->containsStrict($action->descriptor->actionId)) {
+                        return $action;
+                    }
+
+                    return new ActionPlan(
+                        $action->descriptor,
+                        $action->action,
+                        ActionStatus::Executed,
+                        $action->introducedIn,
+                        $action->requiredUntil,
+                    );
+                })
+                ->all(),
+            $this->targetVersion,
+        );
+    }
 }

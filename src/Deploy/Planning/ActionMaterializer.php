@@ -36,17 +36,4 @@ final class ActionMaterializer
 
         return $action;
     }
-
-    /**
-     * Get the version metadata exposed by an action.
-     *
-     * @return array{introducedIn: ?string, requiredUntil: ?string}
-     */
-    public function getMetadata(Action $action): array
-    {
-        return [
-            'introducedIn' => $action->introducedIn(),
-            'requiredUntil' => $action->requiredUntil(),
-        ];
-    }
 }
