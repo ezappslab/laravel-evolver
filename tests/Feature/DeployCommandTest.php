@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Infinity\Evolver\Version\VersionManager;
 
-beforeEach(function () {
+beforeEach(function (): void {
     $this->actionsPath = base_path('tests/deploy_command_actions');
     $this->markerPath = base_path('tests/deploy_command_marker');
     File::deleteDirectory($this->actionsPath);
@@ -33,12 +33,12 @@ beforeEach(function () {
 
 });
 
-afterEach(function () {
+afterEach(function (): void {
     File::deleteDirectory($this->actionsPath);
     File::delete($this->markerPath);
 });
 
-test('dry run uses normal planning and has no execution side effects', function () {
+test('dry run uses normal planning and has no execution side effects', function (): void {
     $transactionLevel = DB::connection()->transactionLevel();
 
     $this->artisan('evolver:deploy', ['--dry-run' => true])
@@ -52,7 +52,7 @@ test('dry run uses normal planning and has no execution side effects', function 
         ->and(DB::connection()->transactionLevel())->toBe($transactionLevel);
 });
 
-test('deploy command executes and records the pending plan', function () {
+test('deploy command executes and records the pending plan', function (): void {
     $this->artisan('evolver:deploy')
         ->expectsOutputToContain('001_write_marker')
         ->doesntExpectOutputToContain('000_already_executed')

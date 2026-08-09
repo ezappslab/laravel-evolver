@@ -56,7 +56,7 @@ function runMode(TransactionMode $mode, ?string $failure = null): mixed
     return $runner->run(runnerPlan($failure), '00000000-0000-0000-0000-000000000001');
 }
 
-test('none keeps prior effects and records when a later action fails', function () {
+test('none keeps prior effects and records when a later action fails', function (): void {
     try {
         runMode(TransactionMode::None, 'c');
     } catch (ActionFailedException $exception) {
@@ -69,7 +69,7 @@ test('none keeps prior effects and records when a later action fails', function 
         ->and(DB::table('evolutions')->pluck('action_id')->all())->toBe(['a', 'b']);
 });
 
-test('per action rolls back the failed action and retains earlier commits', function () {
+test('per action rolls back the failed action and retains earlier commits', function (): void {
     try {
         runMode(TransactionMode::PerAction, 'c');
     } catch (ActionFailedException $exception) {
@@ -80,18 +80,18 @@ test('per action rolls back the failed action and retains earlier commits', func
         ->and(DB::table('evolutions')->pluck('action_id')->all())->toBe(['a', 'b']);
 });
 
-test('entire run failure rolls back all current run work and reports no commits', function () {
+test('entire run failure rolls back all current run work and reports no commits', function (): void {
     try {
         runMode(TransactionMode::EntireRun, 'c');
     } catch (ActionFailedException $exception) {
-        expect($exception->result->committedActionIds)->toBe([]);
+        expect($exception->result->committedActionIds)->toBeEmpty();
     }
 
     expect(DB::table('evolver_effects')->count())->toBe(0)
         ->and(DB::table('evolutions')->count())->toBe(0);
 });
 
-test('entire run success commits action work and evolution records in order', function () {
+test('entire run success commits action work and evolution records in order', function (): void {
     $result = runMode(TransactionMode::EntireRun);
 
     expect($result->committedActionIds)->toBe(['a', 'b', 'c'])
@@ -99,17 +99,16 @@ test('entire run success commits action work and evolution records in order', fu
         ->and(DB::table('evolutions')->pluck('action_id')->all())->toBe(['a', 'b', 'c']);
 });
 
-test('repository prevents duplicate committed identities', function () {
+test('repository prevents duplicate committed identities', function (): void {
     $repository = new DatabaseEvolutionRepository;
     $repository->record('batch', 'a', hash('sha256', 'a'), null, 1);
 
     expect($repository->executed())->toHaveKey('a')
-        ->and((new Evolution)->usesTimestamps())->toBeFalse();
-    expect(fn () => $repository->record('batch', 'a', hash('sha256', 'a'), null, 1))
-        ->toThrow(QueryException::class);
+        ->and((new Evolution)->usesTimestamps())->toBeFalse()
+        ->and(fn() => $repository->record('batch', 'a', hash('sha256', 'a'), null, 1))->toThrow(QueryException::class);
 });
 
-test('repository reports a missing evolution table clearly', function () {
+test('repository reports a missing evolution table clearly', function (): void {
     Schema::drop('evolutions');
 
     expect(fn () => (new DatabaseEvolutionRepository)->executed())

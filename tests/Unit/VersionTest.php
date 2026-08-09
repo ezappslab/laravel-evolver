@@ -6,7 +6,7 @@ use Infinity\Evolver\Version\SemanticVersion;
 use Infinity\Evolver\Version\VersionManager;
 use Infinity\Evolver\Version\VersionStrategy;
 
-test('none strategy resolves no version and disables filtering', function () {
+test('none strategy resolves no version and disables filtering', function (): void {
     $manager = new VersionManager(VersionStrategy::None, null, true);
 
     expect($manager->target())->toBeNull()
@@ -14,7 +14,7 @@ test('none strategy resolves no version and disables filtering', function () {
         ->and($manager->strategy())->toBe(VersionStrategy::None);
 });
 
-test('version manager uses exactly its selected strategy resolver', function () {
+test('version manager uses exactly its selected strategy resolver', function (): void {
     $resolver = Mockery::mock(VersionResolver::class);
     $resolver->shouldReceive('resolve')->once()->andReturn('v2.3.4');
 
@@ -26,7 +26,7 @@ test('version manager uses exactly its selected strategy resolver', function () 
         ->and($target?->value())->toBe('2.3.4');
 });
 
-test('required strategy reports an unresolved version', function () {
+test('required strategy reports an unresolved version', function (): void {
     $resolver = Mockery::mock(VersionResolver::class);
     $resolver->shouldReceive('resolve')->once()->andReturn(null);
 
@@ -36,7 +36,7 @@ test('required strategy reports an unresolved version', function () {
         ->toThrow(VersionResolutionException::class, 'strategy: config');
 });
 
-test('optional unresolved strategy produces no target but still filters', function () {
+test('optional unresolved strategy produces no target but still filters', function (): void {
     $resolver = Mockery::mock(VersionResolver::class);
     $resolver->shouldReceive('resolve')->once()->andReturn(null);
 
@@ -46,14 +46,14 @@ test('optional unresolved strategy produces no target but still filters', functi
         ->and($manager->filtersActions())->toBeTrue();
 });
 
-test('semantic versions support prerelease and build metadata', function () {
+test('semantic versions support prerelease and build metadata', function (): void {
     $version = new SemanticVersion('v1.2.3-01alpha.1+build.42');
 
     expect($version->value())->toBe('1.2.3-01alpha.1+build.42')
         ->and($version->isLessThan(new SemanticVersion('1.2.3')))->toBeTrue();
 });
 
-test('invalid semantic versions are rejected at the version boundary', function (string $version) {
+test('invalid semantic versions are rejected at the version boundary', function (string $version): void {
     expect(fn () => new SemanticVersion($version))
         ->toThrow(VersionResolutionException::class, "Invalid semantic version: {$version}");
 })->with([
@@ -64,7 +64,7 @@ test('invalid semantic versions are rejected at the version boundary', function 
     'invalid character' => '1.2.3+build!',
 ]);
 
-test('semantic version precedence follows the semver specification', function (string $lower, string $higher) {
+test('semantic version precedence follows the semver specification', function (string $lower, string $higher): void {
     expect((new SemanticVersion($lower))->isLessThan(new SemanticVersion($higher)))->toBeTrue();
 })->with([
     ['1.0.0-alpha', '1.0.0-alpha.1'],
