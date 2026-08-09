@@ -23,5 +23,6 @@ test('deployer coordinates the same plan through execution', function () {
 
     expect($plan->actions[0]->status)->toBe(ActionStatus::Pending)
         ->and($result->execution->committedActionIds)->toBe(['001_first'])
-        ->and($result->plan->actions[0]->descriptor->actionId)->toBe('001_first');
+        ->and($result->plan->actions[0]->descriptor->actionId)->toBe('001_first')
+        ->and($result->plan->actions[0]->status)->toBe(ActionStatus::Executed);
 });

@@ -45,6 +45,10 @@ test('dry run uses normal planning and has no execution side effects', function 
 
 test('deploy command executes and records the pending plan', function () {
     $this->artisan('evolver:deploy')
+        ->expectsTable(
+            ['Action', 'Introduced in', 'Required until', 'Status'],
+            [['001_write_marker', '—', '—', 'executed']],
+        )
         ->expectsOutputToContain('Committed 1 action(s).')
         ->expectsOutputToContain('Batch ID:')
         ->assertSuccessful();

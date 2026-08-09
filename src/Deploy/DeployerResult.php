@@ -10,7 +10,7 @@ use Infinity\Evolver\Deploy\Running\ExecutionResult;
 final class DeployerResult
 {
     /**
-     * Create a deployment result.
+     * Create a deployment result with the post-execution plan.
      */
     public function __construct(
         public readonly DeploymentPlan $plan,

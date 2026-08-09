@@ -32,9 +32,8 @@ final class Deployer
      */
     public function deploy(): DeployerResult
     {
-        $plan = $this->plan();
-        $execution = $this->runner->run($plan, (string) Str::uuid());
+        $execution = $this->runner->run($this->plan(), (string) Str::uuid());
 
-        return new DeployerResult($plan, $execution);
+        return new DeployerResult($this->plan(), $execution);
     }
 }
