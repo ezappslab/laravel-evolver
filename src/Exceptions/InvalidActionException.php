@@ -7,9 +7,7 @@ use Throwable;
 class InvalidActionException extends EvolverException
 {
     /**
-     * Create a new exception instance.
-     *
-     * @return void
+     * Create an exception for an action file that cannot be materialized.
      */
     public function __construct(
         public readonly string $path,

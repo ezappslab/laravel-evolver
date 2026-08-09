@@ -1,63 +1,67 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Infinity\Evolver\Version;
 
-use Infinity\Evolver\Contracts\ActionRepository;
 use Infinity\Evolver\Contracts\Version;
+use Infinity\Evolver\Contracts\VersionResolver;
 use Infinity\Evolver\Exceptions\VersionResolutionException;
 
-class VersionManager
+final class VersionManager
 {
+    /**
+     * Create the application version manager.
+     */
     public function __construct(
-        protected ActionRepository $repository,
-        protected TargetVersionResolverFactory $factory
+        private readonly VersionStrategy $strategy,
+        private readonly ?VersionResolver $resolver,
+        private readonly bool $required,
     ) {}
 
     /**
-     * Get the current version.
+     * Get the selected version strategy.
      */
-    public function current(): ?Version
+    public function strategy(): VersionStrategy
     {
-        $version = $this->repository->getCurrentVersion();
-
-        return $version ? $this->parse($version) : null;
+        return $this->strategy;
     }
 
     /**
-     * Get the required target version.
-     *
-     * @throws VersionResolutionException
+     * Resolve and parse the target application version.
      */
-    public function targetRequired(): ?Version
+    public function target(): ?Version
     {
-        $resolverType = config('evolver.versioning.target.resolver');
+        if ($this->strategy === VersionStrategy::None) {
+            return null;
+        }
 
-        $resolver = $this->factory->make();
+        $value = $this->resolver?->resolve();
 
-        $version = $resolver->resolve();
-
-        if (blank($version)) {
-            if (config('evolver.versioning.target.required', true)) {
-                throw new VersionResolutionException("Unable to resolve target version using resolver: {$resolverType}");
+        if (blank($value)) {
+            if ($this->required) {
+                throw new VersionResolutionException("Unable to resolve target version using strategy: {$this->strategy->value}");
             }
 
             return null;
         }
 
-        return $this->parse($version);
+        return $this->parse($value);
     }
 
     /**
-     * Parse the given version string.
+     * Determine whether version metadata filters action applicability.
+     */
+    public function filtersActions(): bool
+    {
+        return $this->strategy !== VersionStrategy::None;
+    }
+
+    /**
+     * Parse a semantic version value.
      */
     public function parse(string $version): Version
     {
-        $format = config('evolver.versioning.format', 'semver');
-
-        if ($format === 'semver') {
-            return SemanticVersion::parse($version);
-        }
-
-        throw new VersionResolutionException("Unsupported version format: {$format}");
+        return SemanticVersion::parse($version);
     }
 }

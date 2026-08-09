@@ -1,66 +1,72 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Infinity\Evolver\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 use RuntimeException;
 
-class ActionMakeCommand extends Command
+final class ActionMakeCommand extends Command
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'evolver:action {name : The name of the action}';
+    protected $signature = 'evolver:action {name : The action class name}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Create a new evolver action';
+    protected $description = 'Create a new evolution action';
 
     /**
      * Execute the console command.
      */
-    public function handle(): void
+    public function handle(): int
     {
-        $name = str($this->argument('name'))->snake();
-        $timestamp = now()->format('Y_m_d_His');
-        $filename = "{$timestamp}_{$name}.php";
+        $input = (string) $this->argument('name');
+        $class = Str::studly($input);
 
-        $path = config('evolver.actions_path', base_path('deploy/actions'));
+        if ($class === '' || ! preg_match('/^[A-Z][A-Za-z0-9]*$/', $class)) {
+            $this->components->error('The action name must produce a valid PHP class name.');
 
-        if (! File::isDirectory($path)) {
-            File::makeDirectory($path, 0755, true);
+            return self::FAILURE;
         }
 
-        $fullPath = $path.DIRECTORY_SEPARATOR.$filename;
+        $directory = (string) config('evolver.actions_path', base_path('deploy/actions'));
+        File::ensureDirectoryExists($directory);
+        $filename = now()->format('Y_m_d_His').'_'.Str::snake($class).'.php';
+        $path = $directory.DIRECTORY_SEPARATOR.$filename;
 
-        if (File::exists($fullPath)) {
-            $this->error('Action already exists!');
+        if (File::exists($path)) {
+            $this->components->error("Action already exists: {$filename}");
 
-            return;
+            return self::FAILURE;
         }
 
-        File::put($fullPath, $this->getStub());
+        File::put($path, $this->stub());
+        $this->components->info("Action created: {$filename}");
 
-        $this->info("Action created successfully: {$filename}");
+        return self::SUCCESS;
     }
 
     /**
-     * Get the stub file for the generator.
+     * Get the contents of the action stub.
      */
-    protected function getStub(): string
+    private function stub(): string
     {
-        $stubPath = __DIR__.'/../../resources/stubs/action.stub';
+        $path = dirname(__DIR__, 2).'/resources/stubs/action.stub';
 
-        if (! File::exists($stubPath)) {
-            throw new RuntimeException("Action stub not found: {$stubPath}");
+        if (! File::exists($path)) {
+            throw new RuntimeException("Action stub not found: {$path}");
         }
 
-        return File::get($stubPath);
+        return File::get($path);
     }
 }

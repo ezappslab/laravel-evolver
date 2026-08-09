@@ -7,9 +7,7 @@ use Throwable;
 class VersionResolutionException extends EvolverException
 {
     /**
-     * Create a new exception instance.
-     *
-     * @return void
+     * Create an exception for an invalid or unresolved version strategy.
      */
     public function __construct(
         string $message = 'Unable to resolve target version',

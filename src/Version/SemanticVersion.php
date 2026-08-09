@@ -1,13 +1,21 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Infinity\Evolver\Version;
 
 use Infinity\Evolver\Contracts\Version as VersionContract;
 
-class SemanticVersion implements VersionContract
+final class SemanticVersion implements VersionContract
 {
+    /**
+     * The normalized semantic version value.
+     */
     protected string $version;
 
+    /**
+     * Create a semantic version value.
+     */
     public function __construct(string $version)
     {
         $this->version = $this->normalize($version);

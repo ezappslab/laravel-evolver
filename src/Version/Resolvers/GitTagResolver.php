@@ -1,17 +1,19 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Infinity\Evolver\Version\Resolvers;
 
 use Illuminate\Support\Facades\Process;
 use Infinity\Evolver\Contracts\VersionResolver;
 
-class GitTagResolver implements VersionResolver
+final class GitTagResolver implements VersionResolver
 {
     /**
-     * Create a new resolver instance.
+     * Create a Git tag resolver.
      */
     public function __construct(
-        protected string $stripPrefix = 'v'
+        protected string $stripPrefix = 'v',
     ) {}
 
     /**
@@ -33,7 +35,7 @@ class GitTagResolver implements VersionResolver
     }
 
     /**
-     * Get the latest Git tag.
+     * Get the latest Git tag from the current repository.
      */
     protected function getLatestTag(): ?string
     {

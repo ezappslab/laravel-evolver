@@ -1,59 +1,32 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Infinity\Evolver\Commands\Concerns;
 
-use Illuminate\Support\Collection;
-use Infinity\Evolver\Deploy\Planning\ActionStatus;
+use Infinity\Evolver\Deploy\Planning\DeploymentPlan;
 
 trait DisplaysActionList
 {
     /**
-     * @param  iterable<array{id: string, status: ActionStatus, duration: int|null, batch_id?: string|null}>  $actions
+     * Display every action in the deployment plan.
      */
-    protected function displayActions(iterable $actions): void
+    protected function displayPlan(DeploymentPlan $plan): void
     {
-        $actions = $actions instanceof Collection ? $actions : collect($actions);
+        if ($plan->actions === []) {
+            $this->components->info('No actions found.');
 
-        $this->newLine();
-
-        $this->components->twoColumnDetail('<fg=gray>Action name</>', '<fg=gray>Batch / Status</>');
-
-        $actions->each(
-            fn ($action) => $this->components->twoColumnDetail(
-                $action['id'],
-                $this->formatActionStatus($action)
-            )
-        );
-
-        $this->newLine();
-    }
-
-    /**
-     * @param  array{id: string, status: ActionStatus, duration: int|null, batch_id?: string|null}  $action
-     */
-    protected function formatActionStatus(array $action): string
-    {
-        $status = sprintf(
-            '<fg=%s;options=bold>%s</>',
-            $action['status']->color(),
-            $this->actionStatusLabel($action['status'])
-        );
-
-        if (! empty($action['batch_id'])) {
-            $status = '['.$action['batch_id'].'] '.$status;
+            return;
         }
 
-        return $status;
-    }
-
-    protected function actionStatusLabel(ActionStatus $status): string
-    {
-        return match ($status) {
-            ActionStatus::AlreadyRan, ActionStatus::Success => 'Completed',
-            ActionStatus::Pending => 'Pending',
-            ActionStatus::OutOfRange => 'Out of range',
-            ActionStatus::Changed => 'Changed',
-            ActionStatus::Failure => 'Failed',
-        };
+        $this->table(
+            ['Action', 'Introduced in', 'Required until', 'Status'],
+            array_map(static fn ($action): array => [
+                $action->descriptor->actionId,
+                $action->introducedIn ?? '—',
+                $action->requiredUntil ?? '—',
+                $action->status->value,
+            ], $plan->actions),
+        );
     }
 }

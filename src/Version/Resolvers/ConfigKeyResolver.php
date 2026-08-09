@@ -1,20 +1,22 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Infinity\Evolver\Version\Resolvers;
 
 use Infinity\Evolver\Contracts\VersionResolver;
 
-class ConfigKeyResolver implements VersionResolver
+final class ConfigKeyResolver implements VersionResolver
 {
     /**
-     * Create a new resolver instance.
+     * Create a configuration key resolver.
      */
     public function __construct(
-        protected string $key
+        protected string $key,
     ) {}
 
     /**
-     * Resolve the version from the configuration.
+     * Resolve the version from the configured Laravel key.
      */
     public function resolve(): ?string
     {

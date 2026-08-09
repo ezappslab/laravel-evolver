@@ -1,113 +1,129 @@
 <?php
 
-use Illuminate\Support\Facades\File;
-use Infinity\Evolver\Contracts\ActionRepository;
+use Illuminate\Database\ConnectionInterface;
+use Illuminate\Database\QueryException;
+use Illuminate\Database\Schema\Blueprint;
+use Infinity\Evolver\Contracts\Action;
+use Infinity\Evolver\Database\DatabaseEvolutionRepository;
 use Infinity\Evolver\Deploy\Planning\ActionDescriptor;
-use Infinity\Evolver\Deploy\Planning\ActionMaterializer;
 use Infinity\Evolver\Deploy\Planning\ActionPlan;
-use Infinity\Evolver\Deploy\Running\ActionRunner;
+use Infinity\Evolver\Deploy\Planning\ActionStatus;
+use Infinity\Evolver\Deploy\Planning\DeploymentPlan;
+use Infinity\Evolver\Deploy\Running\Runner;
 use Infinity\Evolver\Deploy\Running\TransactionMode;
-use Infinity\Evolver\Exceptions\ActionChangedException;
 use Infinity\Evolver\Exceptions\ActionFailedException;
 use Infinity\Evolver\Version\SemanticVersion;
 
-test('action runner records success', function () {
-    $path = base_path('tests/temp_actions');
-    if (! File::isDirectory($path)) {
-        File::makeDirectory($path, 0755, true);
-    }
-
-    $actionFile = $path.'/success_action.php';
-    File::put($actionFile, '<?php return new class extends Infinity\Evolver\Contracts\Action { 
-        public function handle(): void {} 
-    };');
-
-    $repository = Mockery::mock(ActionRepository::class);
-    $materializer = new ActionMaterializer;
-    $runner = new ActionRunner($repository, $materializer, TransactionMode::None);
-
-    $descriptor = new ActionDescriptor('success_action', realpath($actionFile), md5_file($actionFile));
-    $plan = new ActionPlan([$descriptor]);
-
-    $repository->shouldReceive('getSuccessfulRunChecksum')->with('success_action')->andReturn(null);
-    $repository->shouldReceive('recordSuccess')->once();
-
-    $runner->run($plan, 'batch-1', new SemanticVersion('1.0.0'));
-
-    File::deleteDirectory($path);
+beforeEach(function () {
+    $this->connection = $this->app->make(ConnectionInterface::class);
+    $schema = $this->connection->getSchemaBuilder();
+    $schema->dropIfExists('evolutions');
+    $schema->dropIfExists('evolver_effects');
+    $schema->create('evolutions', function (Blueprint $table): void {
+        $table->id();
+        $table->uuid('batch_id');
+        $table->string('action_id')->unique();
+        $table->string('checksum', 64);
+        $table->string('target_version')->nullable();
+        $table->unsignedInteger('duration_ms');
+        $table->timestamp('ran_at');
+        $table->timestamps();
+    });
+    $schema->create('evolver_effects', function (Blueprint $table): void {
+        $table->id();
+        $table->string('name');
+    });
 });
 
-test('action runner records failure and throws exception', function () {
-    $path = base_path('tests/temp_actions');
-    if (! File::isDirectory($path)) {
-        File::makeDirectory($path, 0755, true);
+function runnerPlan(ConnectionInterface $connection, ?string $failure = null): DeploymentPlan
+{
+    $plans = [];
+
+    foreach (['a', 'b', 'c'] as $id) {
+        $action = new class($connection, $id, $failure === $id) extends Action
+        {
+            public function __construct(
+                private readonly ConnectionInterface $connection,
+                private readonly string $name,
+                private readonly bool $fails,
+            ) {}
+
+            public function handle(): void
+            {
+                $this->connection->table('evolver_effects')->insert(['name' => $this->name]);
+
+                if ($this->fails) {
+                    throw new RuntimeException("{$this->name} failed");
+                }
+            }
+        };
+        $plans[] = new ActionPlan(
+            new ActionDescriptor($id, "/actions/{$id}.php", hash('sha256', $id)),
+            $action,
+            ActionStatus::Pending,
+            null,
+            null,
+        );
     }
 
-    $actionFile = $path.'/fail_action.php';
-    File::put($actionFile, '<?php return new class extends Infinity\Evolver\Contracts\Action { 
-        public function handle(): void { throw new \Exception("Failed!"); } 
-    };');
+    return new DeploymentPlan($plans, SemanticVersion::parse('1.2.3'));
+}
 
-    $repository = Mockery::mock(ActionRepository::class);
-    $materializer = new ActionMaterializer;
-    $runner = new ActionRunner($repository, $materializer, TransactionMode::None);
+function runMode(ConnectionInterface $connection, TransactionMode $mode, ?string $failure = null): mixed
+{
+    $runner = new Runner(new DatabaseEvolutionRepository, $mode);
 
-    $descriptor = new ActionDescriptor('fail_action', realpath($actionFile), md5_file($actionFile));
-    $plan = new ActionPlan([$descriptor]);
+    return $runner->run(runnerPlan($connection, $failure), '00000000-0000-0000-0000-000000000001');
+}
 
-    $repository->shouldReceive('getSuccessfulRunChecksum')->with('fail_action')->andReturn(null);
-    $repository->shouldReceive('recordFailure')->once();
-
-    expect(fn () => $runner->run($plan, 'batch-1', new SemanticVersion('1.0.0')))
-        ->toThrow(ActionFailedException::class);
-
-    File::deleteDirectory($path);
-});
-
-test('action runner respects checksum safety', function () {
-    $path = base_path('tests/temp_actions');
-    if (! File::isDirectory($path)) {
-        File::makeDirectory($path, 0755, true);
+test('none keeps prior effects and records when a later action fails', function () {
+    try {
+        runMode($this->connection, TransactionMode::None, 'c');
+    } catch (ActionFailedException $exception) {
+        expect($exception->actionId)->toBe('c')
+            ->and($exception->getPrevious()?->getMessage())->toBe('c failed')
+            ->and($exception->result->committedActionIds)->toBe(['a', 'b']);
     }
 
-    $actionFile = $path.'/changed_action.php';
-    File::put($actionFile, '<?php return new class extends Infinity\Evolver\Contracts\Action { 
-        public function handle(): void {} 
-    };');
-
-    $repository = Mockery::mock(ActionRepository::class);
-    $materializer = new ActionMaterializer;
-    $runner = new ActionRunner($repository, $materializer, TransactionMode::None);
-
-    $descriptor = new ActionDescriptor('changed_action', realpath($actionFile), md5_file($actionFile));
-    $plan = new ActionPlan([$descriptor]);
-
-    $repository->shouldReceive('getSuccessfulRunChecksum')
-        ->with('changed_action')
-        ->andReturn('different-checksum');
-
-    expect(fn () => $runner->run($plan, 'batch-1', new SemanticVersion('1.0.0')))
-        ->toThrow(ActionChangedException::class);
-
-    // Should NOT throw if allowChanged is true
-    $repository->shouldReceive('recordSuccess')->once();
-    $runner->run($plan, 'batch-1', new SemanticVersion('1.0.0'), allowChanged: true);
-
-    File::deleteDirectory($path);
+    expect($this->connection->table('evolver_effects')->pluck('name')->all())->toBe(['a', 'b', 'c'])
+        ->and($this->connection->table('evolutions')->pluck('action_id')->all())->toBe(['a', 'b']);
 });
 
-test('action runner fromConfig uses config value', function () {
-    config(['evolver.transactions.mode' => TransactionMode::All]);
+test('per action rolls back the failed action and retains earlier commits', function () {
+    try {
+        runMode($this->connection, TransactionMode::PerAction, 'c');
+    } catch (ActionFailedException $exception) {
+        expect($exception->result->committedActionIds)->toBe(['a', 'b']);
+    }
 
-    $repository = Mockery::mock(ActionRepository::class);
-    $materializer = new ActionMaterializer;
+    expect($this->connection->table('evolver_effects')->pluck('name')->all())->toBe(['a', 'b'])
+        ->and($this->connection->table('evolutions')->pluck('action_id')->all())->toBe(['a', 'b']);
+});
 
-    $runner = ActionRunner::fromConfig($repository, $materializer);
+test('entire run failure rolls back all current run work and reports no commits', function () {
+    try {
+        runMode($this->connection, TransactionMode::EntireRun, 'c');
+    } catch (ActionFailedException $exception) {
+        expect($exception->result->committedActionIds)->toBe([]);
+    }
 
-    // Use reflection to check the protected property
-    $reflection = new ReflectionClass($runner);
-    $property = $reflection->getProperty('transactionMode');
-    $property->setAccessible(true);
+    expect($this->connection->table('evolver_effects')->count())->toBe(0)
+        ->and($this->connection->table('evolutions')->count())->toBe(0);
+});
 
-    expect($property->getValue($runner))->toBe(TransactionMode::All);
+test('entire run success commits action work and evolution records in order', function () {
+    $result = runMode($this->connection, TransactionMode::EntireRun);
+
+    expect($result->committedActionIds)->toBe(['a', 'b', 'c'])
+        ->and($this->connection->table('evolver_effects')->pluck('name')->all())->toBe(['a', 'b', 'c'])
+        ->and($this->connection->table('evolutions')->pluck('action_id')->all())->toBe(['a', 'b', 'c']);
+});
+
+test('repository prevents duplicate committed identities', function () {
+    $repository = new DatabaseEvolutionRepository;
+    $repository->record('batch', 'a', hash('sha256', 'a'), null, 1);
+
+    expect($repository->executed())->toHaveKey('a');
+    expect(fn () => $repository->record('batch', 'a', hash('sha256', 'a'), null, 1))
+        ->toThrow(QueryException::class);
 });

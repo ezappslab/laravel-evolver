@@ -4,7 +4,7 @@ namespace Infinity\Evolver\Exceptions;
 
 use RuntimeException;
 
-class EvolverException extends RuntimeException
-{
-    //
-}
+/**
+ * Base exception for Laravel Evolver failures.
+ */
+class EvolverException extends RuntimeException {}

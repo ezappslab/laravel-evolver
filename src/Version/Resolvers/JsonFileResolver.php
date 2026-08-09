@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Infinity\Evolver\Version\Resolvers;
 
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
@@ -7,14 +9,14 @@ use Illuminate\Support\Facades\File;
 use Infinity\Evolver\Contracts\VersionResolver;
 use Infinity\Evolver\Exceptions\VersionResolutionException;
 
-class JsonFileResolver implements VersionResolver
+final class JsonFileResolver implements VersionResolver
 {
     /**
-     * Create a new resolver instance.
+     * Create a JSON file resolver.
      */
     public function __construct(
         protected string $path,
-        protected string $key
+        protected string $key,
     ) {}
 
     /**

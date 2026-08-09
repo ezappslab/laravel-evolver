@@ -1,36 +1,34 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Infinity\Evolver\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Evolution extends Model
+final class Evolution extends Model
 {
     /**
-     * The attributes that are mass-assignable.
+     * The attributes that are mass assignable.
      *
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $fillable = [
         'batch_id',
         'action_id',
         'checksum',
-        'status',
-        'introduced_in',
-        'required_until',
         'target_version',
         'duration_ms',
-        'exception',
         'ran_at',
     ];
 
     /**
-     * The attributes that should be cast.
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
      */
     protected function casts(): array
     {
-        return [
-            'ran_at' => 'datetime',
-        ];
+        return ['ran_at' => 'immutable_datetime'];
     }
 }
