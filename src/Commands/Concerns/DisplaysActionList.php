@@ -1,59 +1,57 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Infinity\Evolver\Commands\Concerns;
 
-use Illuminate\Support\Collection;
+use Infinity\Evolver\Deploy\Planning\ActionPlan;
 use Infinity\Evolver\Deploy\Planning\ActionStatus;
+use Infinity\Evolver\Deploy\Planning\DeploymentPlan;
 
 trait DisplaysActionList
 {
     /**
-     * @param  iterable<array{id: string, status: ActionStatus, duration: int|null, batch_id?: string|null}>  $actions
+     * Display every action in the deployment plan.
      */
-    protected function displayActions(iterable $actions): void
+    protected function displayPlan(DeploymentPlan $plan): void
     {
-        $actions = $actions instanceof Collection ? $actions : collect($actions);
+        if ($plan->actions === []) {
+            $this->components->info('No actions found.');
+
+            return;
+        }
 
         $this->newLine();
-
-        $this->components->twoColumnDetail('<fg=gray>Action name</>', '<fg=gray>Batch / Status</>');
-
-        $actions->each(
-            fn ($action) => $this->components->twoColumnDetail(
-                $action['id'],
-                $this->formatActionStatus($action)
-            )
+        $this->components->twoColumnDetail(
+            '<fg=gray>Action name</>',
+            '<fg=gray>Introduced in / Valid until / Status</>',
         );
+
+        foreach ($plan->actions as $action) {
+            $this->components->twoColumnDetail(
+                $action->descriptor->actionId,
+                $this->formatStatus($action),
+            );
+        }
 
         $this->newLine();
     }
 
     /**
-     * @param  array{id: string, status: ActionStatus, duration: int|null, batch_id?: string|null}  $action
+     * Format an action status using Laravel's migration status style.
      */
-    protected function formatActionStatus(array $action): string
+    private function formatStatus(ActionPlan $action): string
     {
-        $status = sprintf(
-            '<fg=%s;options=bold>%s</>',
-            $action['status']->color(),
-            $this->actionStatusLabel($action['status'])
-        );
-
-        if (! empty($action['batch_id'])) {
-            $status = '['.$action['batch_id'].'] '.$status;
-        }
-
-        return $status;
-    }
-
-    protected function actionStatusLabel(ActionStatus $status): string
-    {
-        return match ($status) {
-            ActionStatus::AlreadyRan, ActionStatus::Success => 'Completed',
-            ActionStatus::Pending => 'Pending',
-            ActionStatus::OutOfRange => 'Out of range',
-            ActionStatus::Changed => 'Changed',
-            ActionStatus::Failure => 'Failed',
+        $status = match ($action->status) {
+            ActionStatus::Pending => '<fg=yellow;options=bold>Pending</>',
+            ActionStatus::Executed => '<fg=green;options=bold>Executed</>',
+            ActionStatus::NotApplicable => '<fg=gray;options=bold>Not applicable</>',
         };
+
+        return implode(' / ', [
+            $action->introducedIn ?? '-',
+            $action->requiredUntil ?? '-',
+            $status,
+        ]);
     }
 }

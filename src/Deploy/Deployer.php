@@ -1,66 +1,43 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Infinity\Evolver\Deploy;
 
 use Illuminate\Support\Str;
-use Infinity\Evolver\Contracts\ActionRepository;
-use Infinity\Evolver\Deploy\Planning\ActionPlan;
-use Infinity\Evolver\Deploy\Planning\ActionPlanBuilder;
-use Infinity\Evolver\Deploy\Running\ActionRunner;
-use Infinity\Evolver\Version\VersionManager;
-use Throwable;
+use Infinity\Evolver\Deploy\Planning\DeploymentPlan;
+use Infinity\Evolver\Deploy\Planning\Planner;
+use Infinity\Evolver\Deploy\Running\Runner;
 
-/**
- * Coordinates the planning and execution of actions.
- */
-class Deployer
+final class Deployer
 {
     /**
-     * Create a new deployer instance.
+     * Create a deployment coordinator.
      */
     public function __construct(
-        protected ActionPlanBuilder $planBuilder,
-        protected ActionRunner $runner,
-        protected ActionRepository $repository,
-        protected VersionManager $versionManager
+        private readonly Planner $planner,
+        private readonly Runner $runner,
     ) {}
 
     /**
-     * Generate an action plan for the current state.
+     * Build the deployment plan for the current application state.
      */
-    public function plan(): ActionPlan
+    public function plan(): DeploymentPlan
     {
-        return $this->planBuilder->build();
+        return $this->planner->plan();
     }
 
     /**
-     * Execute the deployment.
-     *
-     * @throws Throwable
+     * Plan and execute the pending evolution actions.
      */
-    public function deploy(bool $allowChanged = false): ?DeployerResult
+    public function deploy(): DeployerResult
     {
         $plan = $this->plan();
-        $targetVersion = $this->versionManager->targetRequired();
-
-        if ($targetVersion === null) {
-            return null;
-        }
-
-        $batchId = (string) Str::uuid();
-
-        $this->runner->run($plan, $batchId, $targetVersion, $allowChanged);
-
-        $targetValue = $targetVersion->value();
-        if ($targetValue !== null) {
-            $this->repository->setCurrentVersion($targetValue);
-        }
+        $execution = $this->runner->run($plan, (string) Str::uuid());
 
         return new DeployerResult(
-            $batchId,
-            $targetVersion,
-            $plan->toRun,
-            $plan->skipped
+            $plan->markExecuted($execution->committedActionIds),
+            $execution,
         );
     }
 }

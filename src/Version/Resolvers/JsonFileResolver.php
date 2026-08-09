@@ -1,26 +1,29 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Infinity\Evolver\Version\Resolvers;
 
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Support\Facades\File;
 use Infinity\Evolver\Contracts\VersionResolver;
 use Infinity\Evolver\Exceptions\VersionResolutionException;
+use JsonException;
 
-class JsonFileResolver implements VersionResolver
+final class JsonFileResolver implements VersionResolver
 {
     /**
-     * Create a new resolver instance.
+     * Create a JSON file resolver.
      */
     public function __construct(
-        protected string $path,
-        protected string $key
+        private readonly string $path,
+        private readonly string $key,
     ) {}
 
     /**
      * Resolve the version from the JSON file.
      *
-     * @throws VersionResolutionException|FileNotFoundException
+     * @throws VersionResolutionException
      */
     public function resolve(): ?string
     {
@@ -28,12 +31,16 @@ class JsonFileResolver implements VersionResolver
             return null;
         }
 
-        $content = File::get($this->path);
+        try {
+            $contents = File::get($this->path);
+        } catch (FileNotFoundException) {
+            return null;
+        }
 
-        $data = json_decode($content, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new VersionResolutionException("Invalid JSON in file: {$this->path}");
+        try {
+            $data = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
+        } catch (JsonException $exception) {
+            throw new VersionResolutionException("Invalid JSON in file: {$this->path}", $exception);
         }
 
         $value = data_get($data, $this->key);

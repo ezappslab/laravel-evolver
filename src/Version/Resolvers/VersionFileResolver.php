@@ -1,17 +1,19 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Infinity\Evolver\Version\Resolvers;
 
 use Illuminate\Support\Facades\File;
 use Infinity\Evolver\Contracts\VersionResolver;
 
-class VersionFileResolver implements VersionResolver
+final class VersionFileResolver implements VersionResolver
 {
     /**
-     * Create a new resolver instance.
+     * Create a plain-text version file resolver.
      */
     public function __construct(
-        protected string $path
+        private readonly string $path,
     ) {}
 
     /**

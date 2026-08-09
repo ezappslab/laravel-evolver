@@ -1,17 +1,19 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Infinity\Evolver\Version\Resolvers;
 
 use Illuminate\Support\Facades\Process;
 use Infinity\Evolver\Contracts\VersionResolver;
 
-class GitTagResolver implements VersionResolver
+final class GitTagResolver implements VersionResolver
 {
     /**
-     * Create a new resolver instance.
+     * Create a Git tag resolver.
      */
     public function __construct(
-        protected string $stripPrefix = 'v'
+        private readonly string $stripPrefix = 'v',
     ) {}
 
     /**
@@ -21,11 +23,11 @@ class GitTagResolver implements VersionResolver
     {
         $tag = $this->getLatestTag();
 
-        if (! $tag) {
+        if (blank($tag)) {
             return null;
         }
 
-        if ($this->stripPrefix && str($tag)->startsWith($this->stripPrefix)) {
+        if (filled($this->stripPrefix) && str($tag)->startsWith($this->stripPrefix)) {
             return str($tag)->after($this->stripPrefix)->value();
         }
 
@@ -33,16 +35,18 @@ class GitTagResolver implements VersionResolver
     }
 
     /**
-     * Get the latest Git tag.
+     * Get the latest Git tag from the current repository.
      */
-    protected function getLatestTag(): ?string
+    private function getLatestTag(): ?string
     {
-        $result = Process::run('git describe --tags --abbrev=0');
+        $result = Process::path(base_path())->run('git describe --tags --abbrev=0');
 
         if ($result->failed()) {
             return null;
         }
 
-        return str($result->output())->trim()->value() ?: null;
+        $tag = str($result->output())->trim()->value();
+
+        return filled($tag) ? $tag : null;
     }
 }

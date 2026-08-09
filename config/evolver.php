@@ -1,6 +1,7 @@
 <?php
 
 use Infinity\Evolver\Deploy\Running\TransactionMode;
+use Infinity\Evolver\Version\VersionStrategy;
 
 return [
 
@@ -9,8 +10,8 @@ return [
     | Actions Path
     |--------------------------------------------------------------------------
     |
-    | This value is the path where your action files are located. These files
-    | contain the logic for your data evolutions.
+    | This path contains the timestamped PHP action files discovered by the
+    | planner. Their filenames provide stable identities and execution order.
     |
     */
 
@@ -18,13 +19,12 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Transactions Mode
+    | Transaction Mode
     |--------------------------------------------------------------------------
     |
-    | This setting determines the transaction boundary for running actions.
-    | "per_action" will wrap each action in its own transaction.
-    |
-    | Supported: "per_action", "all", "none"
+    | Choose whether actions run without package-managed transactions, inside
+    | one transaction per action, or inside one transaction for the entire run.
+    | Supported modes are "none", "per_action", and "entire_run".
     |
     */
 
@@ -34,109 +34,110 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Versioning Configuration
+    | Version Strategy
     |--------------------------------------------------------------------------
     |
-    | Here you may configure how the evolver tracks the current version of
-    | your application and what format it should use.
+    | Exactly one strategy supplies the target application version. The "none"
+    | strategy disables version filtering, so every unexecuted action applies.
+    | Set "required" to false to tolerate an unresolved non-none strategy.
     |
     */
 
     'versioning' => [
-        /*
-        |--------------------------------------------------------------------------
-        | Version Format
-        |--------------------------------------------------------------------------
-        |
-        | Currently supported: "semver"
-        |
-        */
-        'format' => 'semver',
 
         /*
         |--------------------------------------------------------------------------
-        | Target Version Resolution
+        | Selected Strategy
         |--------------------------------------------------------------------------
         |
-        | Exactly ONE resolver is used at a time.
-        | Supported resolvers: file, config, json, git
+        | Select exactly one VersionStrategy. The None strategy resolves no target
+        | version and makes every unexecuted action applicable in filename order.
         |
         */
-        'target' => [
 
-            /*
-            | Fail if the target version cannot be resolved.
-            */
-            'required' => true,
+        'strategy' => VersionStrategy::None,
 
-            /*
-            | Resolver to use: file | config | json | git
-            */
-            'resolver' => 'file',
+        /*
+        | Require a Resolved Version
+        |--------------------------------------------------------------------------
+        |
+        | When enabled, an unresolved File, Config, Json, or Git strategy causes
+        | planning to fail. This option has no effect on the None strategy.
+        |
+        */
 
-            /*
-            |--------------------------------------------------
-            | File resolver
-            |--------------------------------------------------
-            | Reads the version from a plain text file.
-            | Example file content: 1.4.2
-            |
-            */
-            'file' => [
-                'path' => base_path('VERSION'),
-            ],
+        'required' => true,
 
-            /*
-            |--------------------------------------------------
-            | Config resolver
-            |--------------------------------------------------
-            | Reads the version from a config key.
-            | Example: config/app.php => 'version' => '1.4.2'
-            |
-            */
-            'config' => [
-                'key' => 'app.version',
-            ],
+        /*
+        |--------------------------------------------------------------------------
+        | File Strategy
+        |--------------------------------------------------------------------------
+        |
+        | Read the target version from a plain-text file. The file should contain
+        | one semantic version value, such as "1.4.2" or "v1.4.2".
+        |
+        */
 
-            /*
-            |--------------------------------------------------
-            | JSON resolver
-            |--------------------------------------------------
-            | Reads the version from a JSON file using a dotted key.
-            | Example: composer.json => { "version": "1.4.2" }
-            |
-            */
-            'json' => [
-                'path' => base_path('composer.json'),
-                'key' => 'version',
-            ],
-
-            /*
-            |--------------------------------------------------
-            | Git resolver
-            |--------------------------------------------------
-            | Resolves the latest git tag.
-            | Tags like "v1.4.2" will be normalized to "1.4.2".
-            |
-            */
-            'git' => [
-                'strip_prefix' => 'v',
-            ],
+        'file' => [
+            'path' => base_path('VERSION'),
         ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | Config Strategy
+        |--------------------------------------------------------------------------
+        |
+        | Read the target version from the given dotted Laravel configuration key.
+        | The resolved configuration value must be a string.
+        |
+        */
+
+        'config' => [
+            'key' => 'app.version',
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | JSON Strategy
+        |--------------------------------------------------------------------------
+        |
+        | Read a JSON document and select its version using the configured dotted
+        | key. Invalid JSON causes version resolution to fail immediately.
+        |
+        */
+
+        'json' => [
+            'path' => base_path('composer.json'),
+            'key' => 'version',
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | Git Strategy
+        |--------------------------------------------------------------------------
+        |
+        | Resolve the latest Git tag and remove the configured prefix when present.
+        | For example, a "v" prefix normalizes "v1.4.2" to "1.4.2".
+        |
+        */
+
+        'git' => [
+            'strip_prefix' => 'v',
+        ],
+
     ],
 
     /*
     |--------------------------------------------------------------------------
-    | Safety Settings
+    | Safety
     |--------------------------------------------------------------------------
     |
-    | These settings help prevent accidental data loss or corruption by
-    | adding checks before running actions.
+    | When enabled, planning fails if a previously committed action file has a
+    | different checksum, preventing changed actions from passing unnoticed.
     |
     */
 
     'safety' => [
         'fail_on_changed_action' => true,
     ],
-
 ];
