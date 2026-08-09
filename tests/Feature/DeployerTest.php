@@ -5,7 +5,7 @@ use Infinity\Evolver\Deploy\Deployer;
 use Infinity\Evolver\Deploy\Planning\ActionStatus;
 use Infinity\Evolver\Version\VersionManager;
 
-beforeEach(function () {
+beforeEach(function (): void {
     $this->actionsPath = base_path('tests/deployer_actions');
     File::deleteDirectory($this->actionsPath);
     File::ensureDirectoryExists($this->actionsPath);
@@ -16,7 +16,7 @@ beforeEach(function () {
 
 afterEach(fn () => File::deleteDirectory($this->actionsPath));
 
-test('deployer coordinates the same plan through execution', function () {
+test('deployer coordinates the same plan through execution', function (): void {
     $deployer = $this->app->make(Deployer::class);
     $plan = $deployer->plan();
     $result = $deployer->deploy();
