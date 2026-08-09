@@ -32,11 +32,6 @@
         "laravel/pint": "^1.25",
         "mockery/mockery": "^1.6.12",
         "pestphp/pest": "^5.0",
-        "pestphp/pest-plugin": "^5.0",
-        "pestphp/pest-plugin-arch": "^5.0",
-        "pestphp/pest-plugin-faker": "^5.0",
-        "pestphp/pest-plugin-laravel": "^5.0",
-        "pestphp/pest-plugin-mutate": "^5.0",
         "pestphp/pest-plugin-phpstan": "^5.0",
         "pestphp/pest-plugin-rector": "^5.0",
         "pestphp/pest-plugin-type-coverage": "^5.0",
@@ -64,7 +59,8 @@
         ],
         "lint": [
             "@php vendor/bin/pint --ansi",
-            "@php vendor/bin/phpstan analyse --verbose --ansi"
+            "@php vendor/bin/phpstan analyse --verbose --ansi",
+            "@php vendor/bin/rector process --dry-run --ansi"
         ],
         "test": "@php vendor/bin/pest"
     },

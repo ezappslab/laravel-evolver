@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 use Infinity\Evolver\Version\VersionManager;
 
-test('status displays every planned action and the selected version strategy', function () {
+test('status displays every planned action and the selected version strategy', function (): void {
     $path = base_path('tests/status_actions');
     File::deleteDirectory($path);
     File::ensureDirectoryExists($path);

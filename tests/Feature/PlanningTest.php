@@ -12,13 +12,13 @@ use Infinity\Evolver\Exceptions\VersionResolutionException;
 use Infinity\Evolver\Version\VersionManager;
 use Infinity\Evolver\Version\VersionStrategy;
 
-beforeEach(function () {
+beforeEach(function (): void {
     $this->actionsPath = base_path('tests/temp_actions');
     File::deleteDirectory($this->actionsPath);
     File::ensureDirectoryExists($this->actionsPath);
 });
 
-afterEach(function () {
+afterEach(function (): void {
     File::deleteDirectory($this->actionsPath);
 });
 
@@ -55,7 +55,7 @@ function plannerFor(string $path, EvolutionRepository $repository, VersionManage
     );
 }
 
-test('planner discovers materializes statuses and orders every action deterministically', function () {
+test('planner discovers materializes statuses and orders every action deterministically', function (): void {
     writePlanningAction($this->actionsPath, '2026_02_future', '2.0.0');
     writePlanningAction($this->actionsPath, '2026_01_executed');
     writePlanningAction($this->actionsPath, '2026_03_pending', '1.0.0', '3.0.0');
@@ -78,7 +78,7 @@ test('planner discovers materializes statuses and orders every action determinis
     expect(array_map(fn ($item) => $item->descriptor->actionId, $plan->actions))->toBe([
         '2026_01_executed', '2026_02_future', '2026_03_pending',
     ])->and($plan->actions[0]->descriptor->checksum)->toBe($checksum)
-        ->and(strlen($plan->actions[0]->descriptor->checksum))->toBe(64)
+        ->and($plan->actions[0]->descriptor->checksum)->toHaveLength(64)
         ->and(array_map(fn ($item) => $item->status, $plan->actions))->toBe([
             ActionStatus::Executed, ActionStatus::NotApplicable, ActionStatus::Pending,
         ])->and($plan->pending())->toHaveCount(1)
@@ -89,7 +89,7 @@ test('planner discovers materializes statuses and orders every action determinis
         ->and($plan->actions[2]->status)->toBe(ActionStatus::Pending);
 });
 
-test('none strategy makes every unexecuted action pending in natural order', function () {
+test('none strategy makes every unexecuted action pending in natural order', function (): void {
     writePlanningAction($this->actionsPath, 'b_action', '99.0.0');
     writePlanningAction($this->actionsPath, 'a_action', null, '0.0.1');
 
@@ -100,7 +100,7 @@ test('none strategy makes every unexecuted action pending in natural order', fun
         ->and($plan->targetVersion)->toBeNull();
 });
 
-test('planner rejects a changed committed action', function () {
+test('planner rejects a changed committed action', function (): void {
     writePlanningAction($this->actionsPath, 'changed');
     $versions = new VersionManager(VersionStrategy::None, null, true);
 
@@ -111,7 +111,7 @@ test('planner rejects a changed committed action', function () {
     )->plan())->toThrow(ActionChangedException::class);
 });
 
-test('planner identifies the action and field containing invalid version metadata', function (string $field) {
+test('planner identifies the action and field containing invalid version metadata', function (string $field): void {
     $introduced = $field === 'introducedIn' ? 'invalid' : null;
     $until = $field === 'requiredUntil' ? 'invalid' : null;
     writePlanningAction($this->actionsPath, 'invalid_version_action', $introduced, $until);
@@ -135,14 +135,14 @@ test('planner identifies the action and field containing invalid version metadat
         );
 })->with(['introducedIn', 'requiredUntil']);
 
-test('discovery ignores non php files and missing directories', function () {
+test('discovery ignores non php files and missing directories', function (): void {
     File::put($this->actionsPath.'/ignored.txt', 'x');
 
-    expect((new ActionDiscovery($this->actionsPath))->discover())->toBe([])
-        ->and((new ActionDiscovery($this->actionsPath.'/missing'))->discover())->toBe([]);
+    expect((new ActionDiscovery($this->actionsPath))->discover())->toBeEmpty()
+        ->and((new ActionDiscovery($this->actionsPath.'/missing'))->discover())->toBeEmpty();
 });
 
-test('planner skips persistence when no actions are discovered', function () {
+test('planner skips persistence when no actions are discovered', function (): void {
     $repository = Mockery::mock(EvolutionRepository::class);
     $repository->shouldNotReceive('executed');
 
@@ -152,5 +152,5 @@ test('planner skips persistence when no actions are discovered', function () {
         new VersionManager(VersionStrategy::None, null, true),
     )->plan();
 
-    expect($plan->actions)->toBe([]);
+    expect($plan->actions)->toBeEmpty();
 });

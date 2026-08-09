@@ -10,7 +10,7 @@ use Infinity\Evolver\Version\Resolvers\JsonFileResolver;
 use Infinity\Evolver\Version\VersionManager;
 use Infinity\Evolver\Version\VersionStrategy;
 
-test('service provider converts scalar strategies and rejects invalid values', function () {
+test('service provider converts scalar strategies and rejects invalid values', function (): void {
     config(['evolver.versioning.strategy' => 'none']);
     $this->app->forgetInstance(VersionManager::class);
 
@@ -23,7 +23,7 @@ test('service provider converts scalar strategies and rejects invalid values', f
         ->toThrow(VersionResolutionException::class, 'Unknown version strategy: invalid');
 });
 
-test('git strategy resolves tags from the Laravel base path', function () {
+test('git strategy resolves tags from the Laravel base path', function (): void {
     Process::fake(['git describe --tags --abbrev=0' => Process::result(output: "v2.3.4\n")]);
 
     expect((new GitTagResolver)->resolve())->toBe('2.3.4');
@@ -31,7 +31,7 @@ test('git strategy resolves tags from the Laravel base path', function () {
     Process::assertRan(fn (PendingProcess $process): bool => $process->path === base_path());
 });
 
-test('json strategy reports invalid json with file context', function () {
+test('json strategy reports invalid json with file context', function (): void {
     $path = base_path('tests/invalid-version.json');
     File::put($path, '{invalid');
 
@@ -39,7 +39,7 @@ test('json strategy reports invalid json with file context', function () {
         ->toThrow(VersionResolutionException::class, "Invalid JSON in file: {$path}");
 });
 
-test('json strategy treats a file removed before reading as unresolved', function () {
+test('json strategy treats a file removed before reading as unresolved', function (): void {
     File::shouldReceive('exists')->once()->with('/versions.json')->andReturnTrue();
     File::shouldReceive('get')->once()->with('/versions.json')->andThrow(new FileNotFoundException);
 
