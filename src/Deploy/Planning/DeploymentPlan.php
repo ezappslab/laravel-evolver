@@ -46,11 +46,11 @@ final class DeploymentPlan
      */
     public function only(array $actionIds): self
     {
-        $identities = collect($actionIds);
+        $identities = collect($actionIds)->flip();
 
         return new self(
             collect($this->actions)
-                ->filter(static fn (ActionPlan $action): bool => $identities->containsStrict($action->descriptor->actionId))
+                ->filter(static fn (ActionPlan $action): bool => $identities->has($action->descriptor->actionId))
                 ->values()
                 ->all(),
             $this->targetVersion,
@@ -64,12 +64,12 @@ final class DeploymentPlan
      */
     public function markExecuted(array $actionIds): self
     {
-        $identities = collect($actionIds);
+        $identities = collect($actionIds)->flip();
 
         return new self(
             collect($this->actions)
                 ->map(static function (ActionPlan $action) use ($identities): ActionPlan {
-                    if (! $identities->containsStrict($action->descriptor->actionId)) {
+                    if (! $identities->has($action->descriptor->actionId)) {
                         return $action;
                     }
 

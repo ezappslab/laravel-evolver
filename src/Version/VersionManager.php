@@ -61,6 +61,6 @@ final class VersionManager
      */
     public function parse(string $version): SemanticVersion
     {
-        return SemanticVersion::parse($version);
+        return new SemanticVersion($version);
     }
 }

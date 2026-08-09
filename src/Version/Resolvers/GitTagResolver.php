@@ -13,7 +13,7 @@ final class GitTagResolver implements VersionResolver
      * Create a Git tag resolver.
      */
     public function __construct(
-        protected string $stripPrefix = 'v',
+        private readonly string $stripPrefix = 'v',
     ) {}
 
     /**
@@ -37,7 +37,7 @@ final class GitTagResolver implements VersionResolver
     /**
      * Get the latest Git tag from the current repository.
      */
-    protected function getLatestTag(): ?string
+    private function getLatestTag(): ?string
     {
         $result = Process::run('git describe --tags --abbrev=0');
 

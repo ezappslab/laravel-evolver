@@ -43,7 +43,7 @@ function runnerPlan(?string $failure = null): DeploymentPlan
         );
     }
 
-    return new DeploymentPlan($plans, SemanticVersion::parse('1.2.3'));
+    return new DeploymentPlan($plans, new SemanticVersion('1.2.3'));
 }
 
 function runMode(TransactionMode $mode, ?string $failure = null): mixed

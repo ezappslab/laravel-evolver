@@ -16,8 +16,8 @@ final class JsonFileResolver implements VersionResolver
      * Create a JSON file resolver.
      */
     public function __construct(
-        protected string $path,
-        protected string $key,
+        private readonly string $path,
+        private readonly string $key,
     ) {}
 
     /**

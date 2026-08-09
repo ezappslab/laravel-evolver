@@ -17,7 +17,7 @@ final class ActionDiscovery
      * @param  string  $actionsPath  The path to search for action files.
      */
     public function __construct(
-        protected string $actionsPath,
+        private readonly string $actionsPath,
     ) {}
 
     /**

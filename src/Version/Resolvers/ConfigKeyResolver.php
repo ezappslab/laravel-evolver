@@ -12,7 +12,7 @@ final class ConfigKeyResolver implements VersionResolver
      * Create a configuration key resolver.
      */
     public function __construct(
-        protected string $key,
+        private readonly string $key,
     ) {}
 
     /**

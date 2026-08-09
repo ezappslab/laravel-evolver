@@ -13,7 +13,7 @@ final class VersionFileResolver implements VersionResolver
      * Create a plain-text version file resolver.
      */
     public function __construct(
-        protected string $path,
+        private readonly string $path,
     ) {}
 
     /**

@@ -9,7 +9,7 @@ final class SemanticVersion
     /**
      * The normalized semantic version value.
      */
-    protected string $version;
+    private readonly string $version;
 
     /**
      * Create a semantic version value.
@@ -17,16 +17,6 @@ final class SemanticVersion
     public function __construct(string $version)
     {
         $this->version = $this->normalize($version);
-    }
-
-    /**
-     * Parse the given version string.
-     *
-     * @return static
-     */
-    public static function parse(string $version): self
-    {
-        return new self($version);
     }
 
     /**
@@ -48,7 +38,7 @@ final class SemanticVersion
     /**
      * Normalize the version string.
      */
-    protected function normalize(string $version): string
+    private function normalize(string $version): string
     {
         return str($version)->ltrim('vV')->value();
     }
