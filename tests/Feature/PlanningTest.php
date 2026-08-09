@@ -59,7 +59,7 @@ test('planner discovers materializes statuses and orders every action determinis
     writePlanningAction($this->actionsPath, '2026_01_executed');
     writePlanningAction($this->actionsPath, '2026_03_pending', '1.0.0', '3.0.0');
 
-    $checksum = md5_file($this->actionsPath.'/2026_01_executed.php');
+    $checksum = File::hash($this->actionsPath.'/2026_01_executed.php', 'sha256');
     $versions = new VersionManager(
         VersionStrategy::Config,
         new class implements VersionResolver
@@ -76,9 +76,11 @@ test('planner discovers materializes statuses and orders every action determinis
 
     expect(array_map(fn ($item) => $item->descriptor->actionId, $plan->actions))->toBe([
         '2026_01_executed', '2026_02_future', '2026_03_pending',
-    ])->and(array_map(fn ($item) => $item->status, $plan->actions))->toBe([
-        ActionStatus::Executed, ActionStatus::NotApplicable, ActionStatus::Pending,
-    ])->and($plan->pending())->toHaveCount(1)
+    ])->and($plan->actions[0]->descriptor->checksum)->toBe($checksum)
+        ->and(strlen($plan->actions[0]->descriptor->checksum))->toBe(64)
+        ->and(array_map(fn ($item) => $item->status, $plan->actions))->toBe([
+            ActionStatus::Executed, ActionStatus::NotApplicable, ActionStatus::Pending,
+        ])->and($plan->pending())->toHaveCount(1)
         ->and($plan->pending()[0]->action)->toBe($plan->actions[2]->action)
         ->and($plan->executable()->actions)->toBe([$plan->actions[2]])
         ->and($plan->only(['2026_01_executed'])->actions)->toBe([$plan->actions[0]])
@@ -113,4 +115,17 @@ test('discovery ignores non php files and missing directories', function () {
 
     expect((new ActionDiscovery($this->actionsPath))->discover())->toBe([])
         ->and((new ActionDiscovery($this->actionsPath.'/missing'))->discover())->toBe([]);
+});
+
+test('planner skips persistence when no actions are discovered', function () {
+    $repository = Mockery::mock(EvolutionRepository::class);
+    $repository->shouldNotReceive('executed');
+
+    $plan = plannerFor(
+        $this->actionsPath,
+        $repository,
+        new VersionManager(VersionStrategy::None, null, true),
+    )->plan();
+
+    expect($plan->actions)->toBe([]);
 });

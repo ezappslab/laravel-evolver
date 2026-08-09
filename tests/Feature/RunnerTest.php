@@ -2,7 +2,9 @@
 
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Infinity\Evolver\Contracts\Action;
+use Infinity\Evolver\Contracts\EvolutionRepository;
 use Infinity\Evolver\Database\DatabaseEvolutionRepository;
 use Infinity\Evolver\Deploy\Planning\ActionDescriptor;
 use Infinity\Evolver\Deploy\Planning\ActionPlan;
@@ -11,6 +13,7 @@ use Infinity\Evolver\Deploy\Planning\DeploymentPlan;
 use Infinity\Evolver\Deploy\Running\Runner;
 use Infinity\Evolver\Deploy\Running\TransactionMode;
 use Infinity\Evolver\Exceptions\ActionFailedException;
+use Infinity\Evolver\Exceptions\EvolutionTableMissingException;
 use Infinity\Evolver\Version\SemanticVersion;
 
 function runnerPlan(?string $failure = null): DeploymentPlan
@@ -103,4 +106,21 @@ test('repository prevents duplicate committed identities', function () {
     expect($repository->executed())->toHaveKey('a');
     expect(fn () => $repository->record('batch', 'a', hash('sha256', 'a'), null, 1))
         ->toThrow(QueryException::class);
+});
+
+test('runner returns immediately when no actions are pending', function () {
+    $repository = Mockery::mock(EvolutionRepository::class);
+    $repository->shouldNotReceive('record');
+    $runner = new Runner($repository, TransactionMode::EntireRun);
+
+    $result = $runner->run(new DeploymentPlan([], null), 'batch');
+
+    expect($result->committedActionIds)->toBe([]);
+});
+
+test('repository reports a missing evolution table clearly', function () {
+    Schema::drop('evolutions');
+
+    expect(fn () => (new DatabaseEvolutionRepository)->executed())
+        ->toThrow(EvolutionTableMissingException::class, 'Run your Laravel migrations');
 });

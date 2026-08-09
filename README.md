@@ -77,7 +77,7 @@ Both commands use the same authoritative Planner and display every discovered ac
 - `executed`: previously committed successfully and never selected again.
 - `not_applicable`: unexecuted but outside the selected target-version interval.
 
-An executed action whose checksum changes causes planning to fail when `safety.fail_on_changed_action` is enabled. Dry-run performs discovery, materialization, version resolution, and Evolution reads, but never invokes actions, starts an execution transaction, or writes application/Evolution state.
+An executed action whose SHA-256 checksum changes causes planning to fail when `safety.fail_on_changed_action` is enabled. Dry-run performs discovery, materialization, version resolution, and Evolution reads, but never invokes actions, starts an execution transaction, or writes application/Evolution state.
 
 ## Deploying and transactions
 

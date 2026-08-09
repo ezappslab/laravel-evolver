@@ -55,14 +55,7 @@ final class EvolverServiceProvider extends PackageServiceProvider
         ));
 
         $this->app->singleton(VersionManager::class, function (): VersionManager {
-            $configured = config('evolver.versioning.strategy', VersionStrategy::None);
-            $strategy = $configured instanceof VersionStrategy
-                ? $configured
-                : VersionStrategy::tryFrom((string) $configured);
-
-            if ($strategy === null) {
-                throw new VersionResolutionException("Unknown version strategy: {$configured}");
-            }
+            $strategy = $this->versionStrategy();
 
             return new VersionManager(
                 $strategy,
@@ -80,20 +73,45 @@ final class EvolverServiceProvider extends PackageServiceProvider
         ));
 
         $this->app->bind(Runner::class, function ($app): Runner {
-            $configured = config('evolver.transactions.mode', TransactionMode::PerAction);
-            $mode = $configured instanceof TransactionMode
-                ? $configured
-                : TransactionMode::tryFrom((string) $configured);
-
-            if ($mode === null) {
-                throw new \InvalidArgumentException("Unknown transaction mode: {$configured}");
-            }
-
             return new Runner(
                 $app->make(EvolutionRepository::class),
-                $mode,
+                $this->transactionMode(),
             );
         });
+    }
+
+    /**
+     * Get the configured version strategy.
+     */
+    private function versionStrategy(): VersionStrategy
+    {
+        $configured = config('evolver.versioning.strategy', VersionStrategy::None);
+        $strategy = $configured instanceof VersionStrategy
+            ? $configured
+            : VersionStrategy::tryFrom((string) $configured);
+
+        if ($strategy === null) {
+            throw new VersionResolutionException("Unknown version strategy: {$configured}");
+        }
+
+        return $strategy;
+    }
+
+    /**
+     * Get the configured transaction mode.
+     */
+    private function transactionMode(): TransactionMode
+    {
+        $configured = config('evolver.transactions.mode', TransactionMode::PerAction);
+        $mode = $configured instanceof TransactionMode
+            ? $configured
+            : TransactionMode::tryFrom((string) $configured);
+
+        if ($mode === null) {
+            throw new \InvalidArgumentException("Unknown transaction mode: {$configured}");
+        }
+
+        return $mode;
     }
 
     /**

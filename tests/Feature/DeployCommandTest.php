@@ -25,7 +25,7 @@ beforeEach(function () {
     DB::table('evolutions')->insert([
         'batch_id' => '00000000-0000-0000-0000-000000000000',
         'action_id' => '000_already_executed',
-        'checksum' => File::hash($executedPath),
+        'checksum' => File::hash($executedPath, 'sha256'),
         'target_version' => null,
         'duration_ms' => 0,
         'ran_at' => now(),

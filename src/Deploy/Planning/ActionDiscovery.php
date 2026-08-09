@@ -42,7 +42,7 @@ final class ActionDiscovery
 
             $path = $file->getRealPath();
             $actionId = $file->getBasename('.php');
-            $checksum = File::hash($path);
+            $checksum = File::hash($path, 'sha256');
 
             $descriptors[] = new ActionDescriptor(
                 actionId: $actionId,

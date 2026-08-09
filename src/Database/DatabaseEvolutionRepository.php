@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Infinity\Evolver\Database;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Schema;
 use Infinity\Evolver\Contracts\EvolutionRepository;
+use Infinity\Evolver\Exceptions\EvolutionTableMissingException;
 use Infinity\Evolver\Models\Evolution;
 
 final class DatabaseEvolutionRepository implements EvolutionRepository
@@ -17,6 +19,10 @@ final class DatabaseEvolutionRepository implements EvolutionRepository
      */
     public function executed(): array
     {
+        if (! Schema::hasTable((new Evolution)->getTable())) {
+            throw new EvolutionTableMissingException;
+        }
+
         /** @var array<string, string> $executed */
         $executed = $this->query()
             ->pluck('checksum', 'action_id')

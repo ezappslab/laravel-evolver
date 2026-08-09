@@ -26,6 +26,12 @@ final class Runner
      */
     public function run(DeploymentPlan $plan, string $batchId): ExecutionResult
     {
+        $plan = $plan->executable();
+
+        if ($plan->actions === []) {
+            return new ExecutionResult($batchId, []);
+        }
+
         return match ($this->transactionMode) {
             TransactionMode::None => $this->runIncrementally($plan, $batchId, false),
             TransactionMode::PerAction => $this->runIncrementally($plan, $batchId, true),
@@ -40,7 +46,7 @@ final class Runner
     {
         $committed = [];
 
-        foreach ($plan->pending() as $action) {
+        foreach ($plan->actions as $action) {
             try {
                 if ($transactional) {
                     DB::transaction(fn () => $this->execute($action, $batchId, $plan));
@@ -68,7 +74,7 @@ final class Runner
             $committed = DB::transaction(function () use ($plan, $batchId, &$current): array {
                 $executed = [];
 
-                foreach ($plan->pending() as $action) {
+                foreach ($plan->actions as $action) {
                     $current = $action;
                     $this->execute($action, $batchId, $plan);
                     $executed[] = $action->descriptor->actionId;

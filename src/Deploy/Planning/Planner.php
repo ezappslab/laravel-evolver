@@ -28,11 +28,17 @@ final class Planner
      */
     public function plan(): DeploymentPlan
     {
+        $descriptors = $this->discovery->discover();
         $target = $this->versions->target();
+
+        if ($descriptors === []) {
+            return new DeploymentPlan([], $target);
+        }
+
         $executed = $this->repository->executed();
         $actions = [];
 
-        foreach ($this->discovery->discover() as $descriptor) {
+        foreach ($descriptors as $descriptor) {
             $action = $this->materializer->materialize($descriptor);
             $introducedIn = $action->introducedIn();
             $requiredUntil = $action->requiredUntil();
