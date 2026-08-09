@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
@@ -18,7 +19,7 @@ test('service provider converts scalar strategies and rejects invalid values', f
     config(['evolver.versioning.strategy' => 'invalid']);
     $this->app->forgetInstance(VersionManager::class);
 
-    expect(fn() => $this->app->make(VersionManager::class))
+    expect(fn () => $this->app->make(VersionManager::class))
         ->toThrow(VersionResolutionException::class, 'Unknown version strategy: invalid');
 });
 
@@ -27,13 +28,20 @@ test('git strategy resolves tags from the Laravel base path', function () {
 
     expect((new GitTagResolver)->resolve())->toBe('2.3.4');
 
-    Process::assertRan(fn(PendingProcess $process): bool => $process->path === base_path());
+    Process::assertRan(fn (PendingProcess $process): bool => $process->path === base_path());
 });
 
 test('json strategy reports invalid json with file context', function () {
     $path = base_path('tests/invalid-version.json');
     File::put($path, '{invalid');
 
-    expect(fn() => (new JsonFileResolver($path, 'version'))->resolve())
+    expect(fn () => (new JsonFileResolver($path, 'version'))->resolve())
         ->toThrow(VersionResolutionException::class, "Invalid JSON in file: {$path}");
+});
+
+test('json strategy treats a file removed before reading as unresolved', function () {
+    File::shouldReceive('exists')->once()->with('/versions.json')->andReturnTrue();
+    File::shouldReceive('get')->once()->with('/versions.json')->andThrow(new FileNotFoundException);
+
+    expect((new JsonFileResolver('/versions.json', 'version'))->resolve())->toBeNull();
 });

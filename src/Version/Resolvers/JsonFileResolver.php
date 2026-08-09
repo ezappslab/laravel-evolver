@@ -23,7 +23,7 @@ final class JsonFileResolver implements VersionResolver
     /**
      * Resolve the version from the JSON file.
      *
-     * @throws VersionResolutionException|FileNotFoundException
+     * @throws VersionResolutionException
      */
     public function resolve(): ?string
     {
@@ -32,7 +32,13 @@ final class JsonFileResolver implements VersionResolver
         }
 
         try {
-            $data = File::json($this->path, JSON_THROW_ON_ERROR);
+            $contents = File::get($this->path);
+        } catch (FileNotFoundException) {
+            return null;
+        }
+
+        try {
+            $data = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
         } catch (JsonException $exception) {
             throw new VersionResolutionException("Invalid JSON in file: {$this->path}", $exception);
         }
