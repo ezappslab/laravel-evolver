@@ -1,20 +1,21 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Infinity\Evolver\Deploy\Planning;
 
-/**
- * Represents the plan of actions to be executed or skipped.
- */
-class ActionPlan
+use Infinity\Evolver\Contracts\Action;
+
+final class ActionPlan
 {
     /**
-     * Create a new action plan instance.
-     *
-     * @param  ActionDescriptor[]  $toRun  An array of descriptors for actions to be executed.
-     * @param  array<int, array{descriptor: ActionDescriptor, status: ActionStatus}>  $skipped  An array of skipped actions with their statuses.
+     * Create a planned action entry.
      */
     public function __construct(
-        public readonly array $toRun = [],
-        public readonly array $skipped = []
+        public readonly ActionDescriptor $descriptor,
+        public readonly Action $action,
+        public readonly ActionStatus $status,
+        public readonly ?string $introducedIn,
+        public readonly ?string $requiredUntil,
     ) {}
 }

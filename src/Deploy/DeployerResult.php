@@ -1,27 +1,19 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Infinity\Evolver\Deploy;
 
-use Infinity\Evolver\Contracts\Version;
-use Infinity\Evolver\Deploy\Planning\ActionDescriptor;
+use Infinity\Evolver\Deploy\Planning\DeploymentPlan;
+use Infinity\Evolver\Deploy\Running\ExecutionResult;
 
-/**
- * Represents the result of a deployment operation.
- */
-class DeployerResult
+final class DeployerResult
 {
     /**
-     * Create a new deployer result instance.
-     *
-     * @param  string  $batchId  The unique identifier for the deployment batch.
-     * @param  Version  $targetVersion  The target version of the deployment.
-     * @param  ActionDescriptor[]  $plannedToRun  The actions that were planned to be executed.
-     * @param  array<int, array{descriptor: ActionDescriptor, reason: string}>  $skipped  The actions that were skipped.
+     * Create a deployment result with the post-execution plan.
      */
     public function __construct(
-        public readonly string $batchId,
-        public readonly Version $targetVersion,
-        public readonly array $plannedToRun,
-        public readonly array $skipped
+        public readonly DeploymentPlan $plan,
+        public readonly ExecutionResult $execution,
     ) {}
 }

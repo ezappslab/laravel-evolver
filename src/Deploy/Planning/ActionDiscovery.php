@@ -1,27 +1,29 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Infinity\Evolver\Deploy\Planning;
 
 use Illuminate\Support\Facades\File;
 
 /**
- * Discovers action files within a specified directory.
+ * Discover action files within the configured directory.
  */
-class ActionDiscovery
+final class ActionDiscovery
 {
     /**
-     * Create a new action discovery instance.
+     * Create an action discovery service.
      *
      * @param  string  $actionsPath  The path to search for action files.
      */
     public function __construct(
-        protected string $actionsPath
+        private readonly string $actionsPath,
     ) {}
 
     /**
-     * Discover all action files in the specified path.
+     * Discover action files in deterministic identity order.
      *
-     * @return ActionDescriptor[]
+     * @return list<ActionDescriptor>
      */
     public function discover(): array
     {
@@ -40,7 +42,7 @@ class ActionDiscovery
 
             $path = $file->getRealPath();
             $actionId = $file->getBasename('.php');
-            $checksum = File::hash($path);
+            $checksum = File::hash($path, 'sha256');
 
             $descriptors[] = new ActionDescriptor(
                 actionId: $actionId,
@@ -49,7 +51,6 @@ class ActionDiscovery
             );
         }
 
-        // Sort alphabetically by actionId
         return collect($descriptors)
             ->sortBy('actionId')
             ->values()

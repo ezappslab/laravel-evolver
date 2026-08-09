@@ -1,249 +1,156 @@
 <?php
 
 use Illuminate\Support\Facades\File;
-use Infinity\Evolver\Contracts\Action;
-use Infinity\Evolver\Contracts\ActionRepository;
-use Infinity\Evolver\Deploy\Planning\ActionDescriptor;
+use Infinity\Evolver\Contracts\EvolutionRepository;
+use Infinity\Evolver\Contracts\VersionResolver;
 use Infinity\Evolver\Deploy\Planning\ActionDiscovery;
 use Infinity\Evolver\Deploy\Planning\ActionMaterializer;
-use Infinity\Evolver\Deploy\Planning\ActionPlanBuilder;
 use Infinity\Evolver\Deploy\Planning\ActionStatus;
-use Infinity\Evolver\Deploy\Planning\ApplicabilityPolicy;
+use Infinity\Evolver\Deploy\Planning\Planner;
 use Infinity\Evolver\Exceptions\ActionChangedException;
-use Infinity\Evolver\Version\SemanticVersion;
-use Infinity\Evolver\Version\TargetVersionResolverFactory;
+use Infinity\Evolver\Exceptions\VersionResolutionException;
 use Infinity\Evolver\Version\VersionManager;
+use Infinity\Evolver\Version\VersionStrategy;
 
-test('action materializer instantiates action from file', function () {
-    $path = base_path('tests/temp_actions');
-    if (! File::isDirectory($path)) {
-        File::makeDirectory($path, 0755, true);
-    }
-
-    $actionFile = $path.'/test_action.php';
-    File::put($actionFile, '<?php return new class extends Infinity\Evolver\Contracts\Action { 
-        public function introducedIn(): ?string { return "1.0.0"; }
-        public function handle(): void {} 
-    };');
-
-    $materializer = new ActionMaterializer;
-    $descriptor = new ActionDescriptor('test_action', realpath($actionFile), md5_file($actionFile));
-
-    $action = $materializer->materialize($descriptor);
-
-    expect($action)->toBeInstanceOf(Action::class);
-
-    $metadata = $materializer->getMetadata($action);
-    expect($metadata['introducedIn'])->toBe('1.0.0')
-        ->and($metadata['requiredUntil'])->toBeNull();
-
-    File::deleteDirectory($path);
+beforeEach(function () {
+    $this->actionsPath = base_path('tests/temp_actions');
+    File::deleteDirectory($this->actionsPath);
+    File::ensureDirectoryExists($this->actionsPath);
 });
 
-test('action plan builder builds plan', function () {
-    $path = base_path('tests/temp_actions');
-    if (! File::isDirectory($path)) {
-        File::makeDirectory($path, 0755, true);
-    }
-
-    // 1. Action that should run
-    File::put($path.'/run_me.php', '<?php return new class extends Infinity\Evolver\Contracts\Action { 
-        public function handle(): void {} 
-    };');
-
-    // 2. Action that already ran
-    File::put($path.'/already_ran.php', '<?php return new class extends Infinity\Evolver\Contracts\Action { 
-        public function handle(): void {} 
-    };');
-
-    // 3. Action that is out of range
-    File::put($path.'/out_of_range.php', '<?php return new class extends Infinity\Evolver\Contracts\Action { 
-        public function introducedIn(): ?string { return "2.0.0"; }
-        public function handle(): void {} 
-    };');
-
-    $discovery = new ActionDiscovery($path);
-    $materializer = new ActionMaterializer;
-
-    $repository = Mockery::mock(ActionRepository::class);
-    $repository->shouldReceive('getSuccessfulRunChecksum')
-        ->with('run_me')
-        ->andReturn(null);
-    $repository->shouldReceive('getSuccessfulRunChecksum')
-        ->with('already_ran')
-        ->andReturn(md5_file($path.'/already_ran.php'));
-    $repository->shouldReceive('getSuccessfulRunChecksum')
-        ->with('out_of_range')
-        ->andReturn(null);
-
-    $versionManager = new VersionManager($repository, new TargetVersionResolverFactory);
-    $repository->shouldReceive('getCurrentVersion')->andReturn('1.0.0');
-
-    config([
-        'evolver.versioning.target.resolver' => 'config',
-        'evolver.versioning.target.config.key' => 'app.version',
-        'app.version' => '1.1.0',
-    ]);
-
-    $policy = new ApplicabilityPolicy;
-
-    $builder = new ActionPlanBuilder($discovery, $materializer, $repository, $versionManager, $policy);
-    $plan = $builder->build();
-
-    expect($plan->toRun)->toHaveCount(1)
-        ->and($plan->toRun[0]->actionId)->toBe('run_me')
-        ->and($plan->skipped)->toHaveCount(2)
-        ->and($plan->skipped[0]['descriptor']->actionId)->toBe('already_ran')
-        ->and($plan->skipped[0]['status'])->toBe(ActionStatus::AlreadyRan)
-        ->and($plan->skipped[1]['descriptor']->actionId)->toBe('out_of_range')
-        ->and($plan->skipped[1]['status'])->toBe(ActionStatus::OutOfRange);
-
-    File::deleteDirectory($path);
+afterEach(function () {
+    File::deleteDirectory($this->actionsPath);
 });
 
-test('action plan builder throws exception on changed action if safety enabled', function () {
-    $path = base_path('tests/temp_actions');
-    if (! File::isDirectory($path)) {
-        File::makeDirectory($path, 0755, true);
-    }
+function writePlanningAction(string $path, string $name, ?string $introduced = null, ?string $until = null): void
+{
+    $introducedCode = var_export($introduced, true);
+    $untilCode = var_export($until, true);
+    File::put($path.'/'.$name.'.php', <<<PHP
+<?php
+return new class extends Infinity\Evolver\Contracts\Action {
+    public function introducedIn(): ?string { return {$introducedCode}; }
+    public function requiredUntil(): ?string { return {$untilCode}; }
+    public function handle(): void {}
+};
+PHP);
+}
 
-    File::put($path.'/changed.php', '<?php return new class extends Infinity\Evolver\Contracts\Action { 
-        public function handle(): void {} 
-    };');
+function planningRepository(array $executed = []): EvolutionRepository
+{
+    $repository = Mockery::mock(EvolutionRepository::class);
+    $repository->shouldReceive('executed')->once()->andReturn($executed);
 
-    $discovery = new ActionDiscovery($path);
-    $materializer = new ActionMaterializer;
+    return $repository;
+}
 
-    $repository = Mockery::mock(ActionRepository::class);
-    $repository->shouldReceive('getSuccessfulRunChecksum')
-        ->with('changed')
-        ->andReturn('old-checksum');
+function plannerFor(string $path, EvolutionRepository $repository, VersionManager $versions, bool $failChanged = true): Planner
+{
+    return new Planner(
+        new ActionDiscovery($path),
+        new ActionMaterializer,
+        $repository,
+        $versions,
+        $failChanged,
+    );
+}
 
-    $versionManager = new VersionManager($repository, new TargetVersionResolverFactory);
-    $repository->shouldReceive('getCurrentVersion')->andReturn('1.0.0');
+test('planner discovers materializes statuses and orders every action deterministically', function () {
+    writePlanningAction($this->actionsPath, '2026_02_future', '2.0.0');
+    writePlanningAction($this->actionsPath, '2026_01_executed');
+    writePlanningAction($this->actionsPath, '2026_03_pending', '1.0.0', '3.0.0');
 
-    config([
-        'evolver.versioning.target.resolver' => 'config',
-        'evolver.versioning.target.config.key' => 'app.version',
-        'app.version' => '1.1.0',
-        'evolver.safety.fail_on_changed_action' => true,
-    ]);
+    $checksum = File::hash($this->actionsPath.'/2026_01_executed.php', 'sha256');
+    $versions = new VersionManager(
+        VersionStrategy::Config,
+        new class implements VersionResolver
+        {
+            public function resolve(): ?string
+            {
+                return '1.5.0';
+            }
+        },
+        true,
+    );
 
-    $policy = new ApplicabilityPolicy;
+    $plan = plannerFor($this->actionsPath, planningRepository(['2026_01_executed' => $checksum]), $versions)->plan();
 
-    $builder = new ActionPlanBuilder($discovery, $materializer, $repository, $versionManager, $policy);
-
-    expect(fn () => $builder->build())->toThrow(ActionChangedException::class);
-
-    File::deleteDirectory($path);
+    expect(array_map(fn ($item) => $item->descriptor->actionId, $plan->actions))->toBe([
+        '2026_01_executed', '2026_02_future', '2026_03_pending',
+    ])->and($plan->actions[0]->descriptor->checksum)->toBe($checksum)
+        ->and(strlen($plan->actions[0]->descriptor->checksum))->toBe(64)
+        ->and(array_map(fn ($item) => $item->status, $plan->actions))->toBe([
+            ActionStatus::Executed, ActionStatus::NotApplicable, ActionStatus::Pending,
+        ])->and($plan->pending())->toHaveCount(1)
+        ->and($plan->pending()[0]->action)->toBe($plan->actions[2]->action)
+        ->and($plan->executable()->actions)->toBe([$plan->actions[2]])
+        ->and($plan->only(['2026_01_executed'])->actions)->toBe([$plan->actions[0]])
+        ->and($plan->markExecuted(['2026_03_pending'])->actions[2]->status)->toBe(ActionStatus::Executed)
+        ->and($plan->actions[2]->status)->toBe(ActionStatus::Pending);
 });
 
-test('action plan builder skips with "changed" status if safety disabled', function () {
-    $path = base_path('tests/temp_actions');
-    if (! File::isDirectory($path)) {
-        File::makeDirectory($path, 0755, true);
-    }
+test('none strategy makes every unexecuted action pending in natural order', function () {
+    writePlanningAction($this->actionsPath, 'b_action', '99.0.0');
+    writePlanningAction($this->actionsPath, 'a_action', null, '0.0.1');
 
-    File::put($path.'/changed.php', '<?php return new class extends Infinity\Evolver\Contracts\Action { 
-        public function handle(): void {} 
-    };');
+    $versions = new VersionManager(VersionStrategy::None, null, true);
+    $plan = plannerFor($this->actionsPath, planningRepository(), $versions)->plan();
 
-    $discovery = new ActionDiscovery($path);
-    $materializer = new ActionMaterializer;
-
-    $repository = Mockery::mock(ActionRepository::class);
-    $repository->shouldReceive('getSuccessfulRunChecksum')
-        ->with('changed')
-        ->andReturn('old-checksum');
-
-    $versionManager = new VersionManager($repository, new TargetVersionResolverFactory);
-    $repository->shouldReceive('getCurrentVersion')->andReturn('1.0.0');
-
-    config([
-        'evolver.versioning.target.resolver' => 'config',
-        'evolver.versioning.target.config.key' => 'app.version',
-        'app.version' => '1.1.0',
-        'evolver.safety.fail_on_changed_action' => false,
-    ]);
-
-    $policy = new ApplicabilityPolicy;
-
-    $builder = new ActionPlanBuilder($discovery, $materializer, $repository, $versionManager, $policy);
-    $plan = $builder->build();
-
-    expect($plan->skipped)->toHaveCount(1)
-        ->and($plan->skipped[0]['status'])->toBe(ActionStatus::Changed);
-
-    File::deleteDirectory($path);
+    expect(array_map(fn ($item) => $item->descriptor->actionId, $plan->pending()))->toBe(['a_action', 'b_action'])
+        ->and($plan->targetVersion)->toBeNull();
 });
 
-test('action discovery finds php files and sorts them alphabetically', function () {
-    $path = base_path('tests/temp_actions');
-    if (! File::isDirectory($path)) {
-        File::makeDirectory($path, 0755, true);
-    }
+test('planner rejects a changed committed action', function () {
+    writePlanningAction($this->actionsPath, 'changed');
+    $versions = new VersionManager(VersionStrategy::None, null, true);
 
-    File::put($path.'/b_action.php', '<?php // b');
-    File::put($path.'/a_action.php', '<?php // a');
-    File::put($path.'/c_file.txt', 'not an action');
-
-    $discovery = new ActionDiscovery($path);
-    $actions = $discovery->discover();
-
-    expect($actions)->toHaveCount(2)
-        ->and($actions[0]->actionId)->toBe('a_action')
-        ->and($actions[0]->path)->toBe(realpath($path.'/a_action.php'))
-        ->and($actions[1]->actionId)->toBe('b_action')
-        ->and($actions[1]->path)->toBe(realpath($path.'/b_action.php'));
-
-    File::deleteDirectory($path);
+    expect(fn () => plannerFor(
+        $this->actionsPath,
+        planningRepository(['changed' => 'old-checksum']),
+        $versions,
+    )->plan())->toThrow(ActionChangedException::class);
 });
 
-test('action discovery returns empty array if directory does not exist', function () {
-    $discovery = new ActionDiscovery(base_path('non_existent_path'));
-    $actions = $discovery->discover();
+test('planner identifies the action and field containing invalid version metadata', function (string $field) {
+    $introduced = $field === 'introducedIn' ? 'invalid' : null;
+    $until = $field === 'requiredUntil' ? 'invalid' : null;
+    writePlanningAction($this->actionsPath, 'invalid_version_action', $introduced, $until);
 
-    expect($actions)->toBeArray()->toBeEmpty();
+    $versions = new VersionManager(
+        VersionStrategy::Config,
+        new class implements VersionResolver
+        {
+            public function resolve(): ?string
+            {
+                return '1.0.0';
+            }
+        },
+        true,
+    );
+
+    expect(fn () => plannerFor($this->actionsPath, planningRepository(), $versions)->plan())
+        ->toThrow(
+            VersionResolutionException::class,
+            "Invalid {$field} version [invalid] for action [invalid_version_action]",
+        );
+})->with(['introducedIn', 'requiredUntil']);
+
+test('discovery ignores non php files and missing directories', function () {
+    File::put($this->actionsPath.'/ignored.txt', 'x');
+
+    expect((new ActionDiscovery($this->actionsPath))->discover())->toBe([])
+        ->and((new ActionDiscovery($this->actionsPath.'/missing'))->discover())->toBe([]);
 });
 
-test('applicability policy applies when target is inside version interval', function () {
-    $policy = new ApplicabilityPolicy;
+test('planner skips persistence when no actions are discovered', function () {
+    $repository = Mockery::mock(EvolutionRepository::class);
+    $repository->shouldNotReceive('executed');
 
-    $v1 = SemanticVersion::parse('1.0.0');
-    $v2 = SemanticVersion::parse('2.0.0');
-    $v3 = SemanticVersion::parse('3.0.0');
+    $plan = plannerFor(
+        $this->actionsPath,
+        $repository,
+        new VersionManager(VersionStrategy::None, null, true),
+    )->plan();
 
-    // Case: No constraints
-    expect($policy->applies(null, null, $v2))->toBeTrue();
-
-    // Case: Introduced in 1.0.0, target 2.0.0 -> True
-    expect($policy->applies($v1, null, $v2))->toBeTrue();
-
-    // Case: Introduced in 2.0.0, target 2.0.0 -> True
-    expect($policy->applies($v2, null, $v2))->toBeTrue();
-
-    // Case: Introduced in 3.0.0, target 2.0.0 -> False
-    expect($policy->applies($v3, null, $v2))->toBeFalse();
-
-    // Case: Required until 3.0.0, target 2.0.0 -> True
-    expect($policy->applies(null, $v3, $v2))->toBeTrue();
-
-    // Case: Required until 2.0.0, target 2.0.0 -> False (exclusive upper bound)
-    expect($policy->applies(null, $v2, $v2))->toBeFalse();
-
-    // Case: Required until 1.0.0, target 2.0.0 -> False
-    expect($policy->applies(null, $v1, $v2))->toBeFalse();
-
-    // Case: Missing target -> False
-    expect($policy->applies($v1, $v3, null))->toBeFalse();
-});
-
-test('applicability policy from config ignores removed mode setting', function () {
-    config(['evolver.applicability.mode' => 'crossing']);
-    $policy = ApplicabilityPolicy::fromConfig();
-
-    $v1 = SemanticVersion::parse('1.0.0');
-    $v2 = SemanticVersion::parse('2.0.0');
-
-    expect($policy->applies($v1, $v2, $v2))->toBeFalse();
+    expect($plan->actions)->toBe([]);
 });

@@ -1,13 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Infinity\Evolver\Contracts;
 
 abstract class Action
 {
     /**
-     * Retrieve the version or context where the subject was introduced.
-     *
-     * @return string|null Returns the version as a string, or null if unavailable.
+     * Get the version in which the action became applicable.
      */
     public function introducedIn(): ?string
     {
@@ -15,9 +15,7 @@ abstract class Action
     }
 
     /**
-     * Retrieves the version until which the action is required.
-     *
-     * @return string|null The upper version bound as a string, or null if not set.
+     * Get the exclusive version until which the action is applicable.
      */
     public function requiredUntil(): ?string
     {

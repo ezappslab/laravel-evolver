@@ -1,113 +1,117 @@
 <?php
 
-use Illuminate\Support\Facades\File;
-use Infinity\Evolver\Contracts\ActionRepository;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Infinity\Evolver\Contracts\Action;
+use Infinity\Evolver\Database\DatabaseEvolutionRepository;
 use Infinity\Evolver\Deploy\Planning\ActionDescriptor;
-use Infinity\Evolver\Deploy\Planning\ActionMaterializer;
 use Infinity\Evolver\Deploy\Planning\ActionPlan;
-use Infinity\Evolver\Deploy\Running\ActionRunner;
+use Infinity\Evolver\Deploy\Planning\ActionStatus;
+use Infinity\Evolver\Deploy\Planning\DeploymentPlan;
+use Infinity\Evolver\Deploy\Running\Runner;
 use Infinity\Evolver\Deploy\Running\TransactionMode;
-use Infinity\Evolver\Exceptions\ActionChangedException;
 use Infinity\Evolver\Exceptions\ActionFailedException;
+use Infinity\Evolver\Exceptions\EvolutionTableMissingException;
+use Infinity\Evolver\Models\Evolution;
 use Infinity\Evolver\Version\SemanticVersion;
 
-test('action runner records success', function () {
-    $path = base_path('tests/temp_actions');
-    if (! File::isDirectory($path)) {
-        File::makeDirectory($path, 0755, true);
+function runnerPlan(?string $failure = null): DeploymentPlan
+{
+    $plans = [];
+
+    foreach (['a', 'b', 'c'] as $id) {
+        $action = new class($id, $failure === $id) extends Action
+        {
+            public function __construct(
+                private readonly string $name,
+                private readonly bool $fails,
+            ) {}
+
+            public function handle(): void
+            {
+                DB::table('evolver_effects')->insert(['name' => $this->name]);
+
+                if ($this->fails) {
+                    throw new RuntimeException("{$this->name} failed");
+                }
+            }
+        };
+        $plans[] = new ActionPlan(
+            new ActionDescriptor($id, "/actions/{$id}.php", hash('sha256', $id)),
+            $action,
+            ActionStatus::Pending,
+            null,
+            null,
+        );
     }
 
-    $actionFile = $path.'/success_action.php';
-    File::put($actionFile, '<?php return new class extends Infinity\Evolver\Contracts\Action { 
-        public function handle(): void {} 
-    };');
+    return new DeploymentPlan($plans, new SemanticVersion('1.2.3'));
+}
 
-    $repository = Mockery::mock(ActionRepository::class);
-    $materializer = new ActionMaterializer;
-    $runner = new ActionRunner($repository, $materializer, TransactionMode::None);
+function runMode(TransactionMode $mode, ?string $failure = null): mixed
+{
+    $runner = new Runner(new DatabaseEvolutionRepository, $mode);
 
-    $descriptor = new ActionDescriptor('success_action', realpath($actionFile), md5_file($actionFile));
-    $plan = new ActionPlan([$descriptor]);
+    return $runner->run(runnerPlan($failure), '00000000-0000-0000-0000-000000000001');
+}
 
-    $repository->shouldReceive('getSuccessfulRunChecksum')->with('success_action')->andReturn(null);
-    $repository->shouldReceive('recordSuccess')->once();
-
-    $runner->run($plan, 'batch-1', new SemanticVersion('1.0.0'));
-
-    File::deleteDirectory($path);
-});
-
-test('action runner records failure and throws exception', function () {
-    $path = base_path('tests/temp_actions');
-    if (! File::isDirectory($path)) {
-        File::makeDirectory($path, 0755, true);
+test('none keeps prior effects and records when a later action fails', function () {
+    try {
+        runMode(TransactionMode::None, 'c');
+    } catch (ActionFailedException $exception) {
+        expect($exception->actionId)->toBe('c')
+            ->and($exception->getPrevious()?->getMessage())->toBe('c failed')
+            ->and($exception->result->committedActionIds)->toBe(['a', 'b']);
     }
 
-    $actionFile = $path.'/fail_action.php';
-    File::put($actionFile, '<?php return new class extends Infinity\Evolver\Contracts\Action { 
-        public function handle(): void { throw new \Exception("Failed!"); } 
-    };');
-
-    $repository = Mockery::mock(ActionRepository::class);
-    $materializer = new ActionMaterializer;
-    $runner = new ActionRunner($repository, $materializer, TransactionMode::None);
-
-    $descriptor = new ActionDescriptor('fail_action', realpath($actionFile), md5_file($actionFile));
-    $plan = new ActionPlan([$descriptor]);
-
-    $repository->shouldReceive('getSuccessfulRunChecksum')->with('fail_action')->andReturn(null);
-    $repository->shouldReceive('recordFailure')->once();
-
-    expect(fn () => $runner->run($plan, 'batch-1', new SemanticVersion('1.0.0')))
-        ->toThrow(ActionFailedException::class);
-
-    File::deleteDirectory($path);
+    expect(DB::table('evolver_effects')->pluck('name')->all())->toBe(['a', 'b', 'c'])
+        ->and(DB::table('evolutions')->pluck('action_id')->all())->toBe(['a', 'b']);
 });
 
-test('action runner respects checksum safety', function () {
-    $path = base_path('tests/temp_actions');
-    if (! File::isDirectory($path)) {
-        File::makeDirectory($path, 0755, true);
+test('per action rolls back the failed action and retains earlier commits', function () {
+    try {
+        runMode(TransactionMode::PerAction, 'c');
+    } catch (ActionFailedException $exception) {
+        expect($exception->result->committedActionIds)->toBe(['a', 'b']);
     }
 
-    $actionFile = $path.'/changed_action.php';
-    File::put($actionFile, '<?php return new class extends Infinity\Evolver\Contracts\Action { 
-        public function handle(): void {} 
-    };');
-
-    $repository = Mockery::mock(ActionRepository::class);
-    $materializer = new ActionMaterializer;
-    $runner = new ActionRunner($repository, $materializer, TransactionMode::None);
-
-    $descriptor = new ActionDescriptor('changed_action', realpath($actionFile), md5_file($actionFile));
-    $plan = new ActionPlan([$descriptor]);
-
-    $repository->shouldReceive('getSuccessfulRunChecksum')
-        ->with('changed_action')
-        ->andReturn('different-checksum');
-
-    expect(fn () => $runner->run($plan, 'batch-1', new SemanticVersion('1.0.0')))
-        ->toThrow(ActionChangedException::class);
-
-    // Should NOT throw if allowChanged is true
-    $repository->shouldReceive('recordSuccess')->once();
-    $runner->run($plan, 'batch-1', new SemanticVersion('1.0.0'), allowChanged: true);
-
-    File::deleteDirectory($path);
+    expect(DB::table('evolver_effects')->pluck('name')->all())->toBe(['a', 'b'])
+        ->and(DB::table('evolutions')->pluck('action_id')->all())->toBe(['a', 'b']);
 });
 
-test('action runner fromConfig uses config value', function () {
-    config(['evolver.transactions.mode' => TransactionMode::All]);
+test('entire run failure rolls back all current run work and reports no commits', function () {
+    try {
+        runMode(TransactionMode::EntireRun, 'c');
+    } catch (ActionFailedException $exception) {
+        expect($exception->result->committedActionIds)->toBe([]);
+    }
 
-    $repository = Mockery::mock(ActionRepository::class);
-    $materializer = new ActionMaterializer;
+    expect(DB::table('evolver_effects')->count())->toBe(0)
+        ->and(DB::table('evolutions')->count())->toBe(0);
+});
 
-    $runner = ActionRunner::fromConfig($repository, $materializer);
+test('entire run success commits action work and evolution records in order', function () {
+    $result = runMode(TransactionMode::EntireRun);
 
-    // Use reflection to check the protected property
-    $reflection = new ReflectionClass($runner);
-    $property = $reflection->getProperty('transactionMode');
-    $property->setAccessible(true);
+    expect($result->committedActionIds)->toBe(['a', 'b', 'c'])
+        ->and(DB::table('evolver_effects')->pluck('name')->all())->toBe(['a', 'b', 'c'])
+        ->and(DB::table('evolutions')->pluck('action_id')->all())->toBe(['a', 'b', 'c']);
+});
 
-    expect($property->getValue($runner))->toBe(TransactionMode::All);
+test('repository prevents duplicate committed identities', function () {
+    $repository = new DatabaseEvolutionRepository;
+    $repository->record('batch', 'a', hash('sha256', 'a'), null, 1);
+
+    expect($repository->executed())->toHaveKey('a')
+        ->and((new Evolution)->usesTimestamps())->toBeFalse();
+    expect(fn () => $repository->record('batch', 'a', hash('sha256', 'a'), null, 1))
+        ->toThrow(QueryException::class);
+});
+
+test('repository reports a missing evolution table clearly', function () {
+    Schema::drop('evolutions');
+
+    expect(fn () => (new DatabaseEvolutionRepository)->executed())
+        ->toThrow(EvolutionTableMissingException::class, 'Run your Laravel migrations');
 });

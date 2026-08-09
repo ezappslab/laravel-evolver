@@ -1,37 +1,23 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Infinity\Evolver\Deploy\Planning;
 
-/**
- * Represents the status of an action in the deployment plan.
- */
 enum ActionStatus: string
 {
+    /**
+     * The action is applicable, unexecuted, and selected for deployment.
+     */
     case Pending = 'pending';
-    case AlreadyRan = 'already_ran';
-    case OutOfRange = 'out_of_range';
-    case Changed = 'changed';
-    case Success = 'success';
-    case Failure = 'failure';
 
     /**
-     * Get the display label for the status.
+     * The action was committed successfully in an earlier deployment.
      */
-    public function label(): string
-    {
-        return $this->value;
-    }
+    case Executed = 'executed';
 
     /**
-     * Get the color for the status in console output.
+     * The action is unexecuted but outside the target-version interval.
      */
-    public function color(): string
-    {
-        return match ($this) {
-            self::Pending => 'yellow',
-            self::AlreadyRan, self::Success => 'green',
-            self::OutOfRange => 'gray',
-            self::Changed, self::Failure => 'red',
-        };
-    }
+    case NotApplicable = 'not_applicable';
 }
