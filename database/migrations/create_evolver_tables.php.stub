@@ -12,13 +12,12 @@ return new class extends Migration
     {
         Schema::create('evolutions', function (Blueprint $table): void {
             $table->id();
-            $table->uuid('batch_id')->index();
+            $table->uuid('batch_id');
             $table->string('action_id')->unique();
             $table->string('checksum', 64);
             $table->string('target_version')->nullable();
             $table->unsignedInteger('duration_ms');
             $table->timestamp('ran_at');
-            $table->timestamps();
         });
     }
 

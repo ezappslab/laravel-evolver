@@ -58,3 +58,33 @@ test('service provider converts scalar strategies and rejects invalid values', f
     expect(fn () => $this->app->make(VersionManager::class))
         ->toThrow(VersionResolutionException::class, 'Unknown version strategy: invalid');
 });
+
+test('semantic versions support prerelease and build metadata', function () {
+    $version = new SemanticVersion('v1.2.3-01alpha.1+build.42');
+
+    expect($version->value())->toBe('1.2.3-01alpha.1+build.42')
+        ->and($version->isLessThan(new SemanticVersion('1.2.3')))->toBeTrue();
+});
+
+test('invalid semantic versions are rejected at the version boundary', function (string $version) {
+    expect(fn () => new SemanticVersion($version))
+        ->toThrow(VersionResolutionException::class, "Invalid semantic version: {$version}");
+})->with([
+    'missing patch' => '1.2',
+    'leading zero major' => '01.2.3',
+    'leading zero prerelease number' => '1.2.3-01',
+    'empty prerelease' => '1.2.3-',
+    'invalid character' => '1.2.3+build!',
+]);
+
+test('semantic version precedence follows the semver specification', function (string $lower, string $higher) {
+    expect((new SemanticVersion($lower))->isLessThan(new SemanticVersion($higher)))->toBeTrue();
+})->with([
+    ['1.0.0-alpha', '1.0.0-alpha.1'],
+    ['1.0.0-alpha.1', '1.0.0-alpha.beta'],
+    ['1.0.0-alpha.beta', '1.0.0-beta'],
+    ['1.0.0-beta', '1.0.0-beta.2'],
+    ['1.0.0-beta.2', '1.0.0-beta.11'],
+    ['1.0.0-beta.11', '1.0.0-rc.1'],
+    ['1.0.0-rc.1', '1.0.0'],
+]);

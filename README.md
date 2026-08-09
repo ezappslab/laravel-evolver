@@ -60,7 +60,7 @@ The interval includes `introducedIn` and excludes `requiredUntil`. Either bound 
 - `json`: reads `versioning.json.path` at `versioning.json.key`.
 - `git`: reads the latest Git tag and removes `versioning.git.strip_prefix`.
 
-Non-`none` strategies use semantic-version comparisons. If resolution fails, `versioning.required` determines whether planning throws or produces no applicable actions.
+Non-`none` strategies require valid semantic versions, including optional prerelease and build metadata, and use semantic-version comparisons. If resolution fails, `versioning.required` determines whether planning throws or produces no applicable actions.
 
 Evolution records and package-managed transactions use Laravel's default database connection.
 

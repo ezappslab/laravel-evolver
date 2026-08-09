@@ -29,8 +29,6 @@ beforeEach(function () {
         'target_version' => null,
         'duration_ms' => 0,
         'ran_at' => now(),
-        'created_at' => now(),
-        'updated_at' => now(),
     ]);
 
 });

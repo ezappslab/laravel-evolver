@@ -14,6 +14,7 @@ use Infinity\Evolver\Deploy\Running\Runner;
 use Infinity\Evolver\Deploy\Running\TransactionMode;
 use Infinity\Evolver\Exceptions\ActionFailedException;
 use Infinity\Evolver\Exceptions\EvolutionTableMissingException;
+use Infinity\Evolver\Models\Evolution;
 use Infinity\Evolver\Version\SemanticVersion;
 
 function runnerPlan(?string $failure = null): DeploymentPlan
@@ -103,7 +104,8 @@ test('repository prevents duplicate committed identities', function () {
     $repository = new DatabaseEvolutionRepository;
     $repository->record('batch', 'a', hash('sha256', 'a'), null, 1);
 
-    expect($repository->executed())->toHaveKey('a');
+    expect($repository->executed())->toHaveKey('a')
+        ->and((new Evolution)->usesTimestamps())->toBeFalse();
     expect(fn () => $repository->record('batch', 'a', hash('sha256', 'a'), null, 1))
         ->toThrow(QueryException::class);
 });
