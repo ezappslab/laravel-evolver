@@ -135,6 +135,19 @@ test('planner identifies the action and field containing invalid version metadat
         );
 })->with(['introducedIn', 'requiredUntil']);
 
+test('planner rejects an invalid action version interval regardless of filtering', function (): void {
+    writePlanningAction($this->actionsPath, 'invalid_interval_action', '2.0.0', '1.0.0');
+
+    expect(fn () => plannerFor(
+        $this->actionsPath,
+        planningRepository(),
+        new VersionManager(VersionStrategy::None, null, true),
+    )->plan())->toThrow(
+        VersionResolutionException::class,
+        'Invalid version interval for action [invalid_interval_action]',
+    );
+});
+
 test('discovery ignores non php files and missing directories', function (): void {
     File::put($this->actionsPath.'/ignored.txt', 'x');
 
