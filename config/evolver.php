@@ -19,6 +19,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Database Connection
+    |--------------------------------------------------------------------------
+    |
+    | The connection used for evolution records and package-managed
+    | transactions. A null value uses Laravel's default connection.
+    |
+    */
+
+    'database' => [
+        'connection' => null,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Transaction Mode
     |--------------------------------------------------------------------------
     |
@@ -139,5 +153,54 @@ return [
 
     'safety' => [
         'fail_on_changed_action' => true,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | API Versioning
+    |--------------------------------------------------------------------------
+    |
+    | Opt in to URL-based major API versions such as /api/v1. Each configured
+    | route file is isolated behind version resolution and lifecycle handling.
+    | Deprecated versions emit standard lifecycle headers; sunset versions
+    | return HTTP 410 and are no longer dispatched.
+    |
+    */
+
+    'api' => [
+        /*
+        |--------------------------------------------------------------------------
+        | Enable API Versioning
+        |--------------------------------------------------------------------------
+        |
+        | When enabled, Evolver registers the configured versioned API routes and
+        | applies version resolution and lifecycle handling to incoming requests.
+        |
+        */
+
+        'enabled' => false,
+
+        /*
+        |--------------------------------------------------------------------------
+        | API Base Path
+        |--------------------------------------------------------------------------
+        |
+        | This path prefixes every configured API version. For example, the
+        | default value exposes version "v1" beneath the "/api/v1" URL path.
+        |
+        */
+
+        'base_path' => 'api',
+
+        'versions' => [
+            // 'v1' => [
+            //     'routes' => base_path('routes/api/v1.php'),
+            //     'middleware' => ['api'],
+            //     'deprecated_at' => null,
+            //     'sunset_at' => null,
+            //     'successor' => null,
+            //     'successor_url' => null,
+            // ],
+        ],
     ],
 ];

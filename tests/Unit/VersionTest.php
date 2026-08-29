@@ -2,7 +2,9 @@
 
 use Infinity\Evolver\Contracts\VersionResolver;
 use Infinity\Evolver\Exceptions\VersionResolutionException;
+use Infinity\Evolver\Exceptions\VersionResolverException;
 use Infinity\Evolver\Version\SemanticVersion;
+use Infinity\Evolver\Version\VersionInterval;
 use Infinity\Evolver\Version\VersionManager;
 use Infinity\Evolver\Version\VersionStrategy;
 
@@ -46,6 +48,16 @@ test('optional unresolved strategy produces no target but still filters', functi
         ->and($manager->filtersActions())->toBeTrue();
 });
 
+test('optional strategies do not suppress resolver failures', function (): void {
+    $resolver = Mockery::mock(VersionResolver::class);
+    $resolver->shouldReceive('resolve')->once()->andThrow(new VersionResolverException('Version source failed'));
+
+    $manager = new VersionManager(VersionStrategy::Json, $resolver, false);
+
+    expect(fn () => $manager->target())
+        ->toThrow(VersionResolverException::class, 'Version source failed');
+});
+
 test('semantic versions support prerelease and build metadata', function (): void {
     $version = new SemanticVersion('v1.2.3-01alpha.1+build.42');
 
@@ -75,3 +87,27 @@ test('semantic version precedence follows the semver specification', function (s
     ['1.0.0-beta.11', '1.0.0-rc.1'],
     ['1.0.0-rc.1', '1.0.0'],
 ]);
+
+test('version intervals require the inclusive bound to precede the exclusive bound', function (string $introduced, string $until): void {
+    expect(fn () => new VersionInterval(
+        new SemanticVersion($introduced),
+        new SemanticVersion($until),
+    ))->toThrow(
+        VersionResolutionException::class,
+        "introducedIn [{$introduced}] must be less than requiredUntil [{$until}]",
+    );
+})->with([
+    'equal bounds' => ['2.0.0', '2.0.0'],
+    'reversed bounds' => ['2.0.0', '1.0.0'],
+]);
+
+test('version intervals are inclusive at introduction and exclusive at removal', function (): void {
+    $interval = new VersionInterval(
+        new SemanticVersion('1.2.0'),
+        new SemanticVersion('2.0.0'),
+    );
+
+    expect($interval->contains(new SemanticVersion('1.2.0')))->toBeTrue()
+        ->and($interval->contains(new SemanticVersion('1.9.9')))->toBeTrue()
+        ->and($interval->contains(new SemanticVersion('2.0.0')))->toBeFalse();
+});

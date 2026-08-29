@@ -6,6 +6,7 @@ namespace Infinity\Evolver\Version\Resolvers;
 
 use Illuminate\Support\Facades\Process;
 use Infinity\Evolver\Contracts\VersionResolver;
+use Infinity\Evolver\Exceptions\VersionResolverException;
 
 final class GitTagResolver implements VersionResolver
 {
@@ -39,10 +40,24 @@ final class GitTagResolver implements VersionResolver
      */
     private function getLatestTag(): ?string
     {
+        $tags = Process::path(base_path())->run('git tag --merged HEAD');
+
+        if ($tags->failed()) {
+            throw new VersionResolverException(
+                'Unable to inspect Git tags: '.str($tags->errorOutput())->trim()->value(),
+            );
+        }
+
+        if (blank($tags->output())) {
+            return null;
+        }
+
         $result = Process::path(base_path())->run('git describe --tags --abbrev=0');
 
         if ($result->failed()) {
-            return null;
+            throw new VersionResolverException(
+                'Unable to resolve the latest Git tag: '.str($result->errorOutput())->trim()->value(),
+            );
         }
 
         $tag = str($result->output())->trim()->value();

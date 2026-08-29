@@ -6,6 +6,8 @@ namespace Infinity\Evolver\Version\Resolvers;
 
 use Illuminate\Support\Facades\File;
 use Infinity\Evolver\Contracts\VersionResolver;
+use Infinity\Evolver\Exceptions\VersionResolverException;
+use Throwable;
 
 final class VersionFileResolver implements VersionResolver
 {
@@ -21,12 +23,30 @@ final class VersionFileResolver implements VersionResolver
      */
     public function resolve(): ?string
     {
-        if (! File::exists($this->path)) {
+        if (! $this->sourceExists()) {
             return null;
         }
 
-        $content = str(File::get($this->path))->trim();
+        try {
+            $content = str(File::get($this->path))->trim();
+        } catch (Throwable $exception) {
+            if (! $this->sourceExists()) {
+                return null;
+            }
+
+            throw new VersionResolverException("Unable to read version file: {$this->path}", $exception);
+        }
 
         return $content->isNotEmpty() ? $content->value() : null;
+    }
+
+    /**
+     * Determine whether the configured source currently exists.
+     *
+     * @phpstan-impure
+     */
+    private function sourceExists(): bool
+    {
+        return File::exists($this->path);
     }
 }

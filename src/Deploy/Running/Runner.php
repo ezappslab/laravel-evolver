@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Infinity\Evolver\Deploy\Running;
 
-use Illuminate\Support\Facades\DB;
+use Illuminate\Database\ConnectionInterface;
+use Infinity\Evolver\Contracts\ActionIntegrityVerifier;
 use Infinity\Evolver\Contracts\EvolutionRepository;
 use Infinity\Evolver\Deploy\Planning\ActionPlan;
-use Infinity\Evolver\Deploy\Planning\DeploymentPlan;
+use Infinity\Evolver\Deploy\Planning\ExecutionPlan;
+use Infinity\Evolver\Exceptions\ActionChangedException;
 use Infinity\Evolver\Exceptions\ActionFailedException;
+use Infinity\Evolver\Exceptions\InvalidActionException;
 use Throwable;
 
 final class Runner
@@ -19,15 +22,15 @@ final class Runner
     public function __construct(
         private readonly EvolutionRepository $repository,
         private readonly TransactionMode $transactionMode,
+        private readonly ConnectionInterface $connection,
+        private readonly ActionIntegrityVerifier $integrity,
     ) {}
 
     /**
      * Execute the pending actions in their planned order.
      */
-    public function run(DeploymentPlan $plan, string $batchId): ExecutionResult
+    public function run(ExecutionPlan $plan, string $batchId): ExecutionResult
     {
-        $plan = $plan->executable();
-
         if ($plan->actions === []) {
             return new ExecutionResult($batchId, []);
         }
@@ -42,14 +45,14 @@ final class Runner
     /**
      * Execute actions without a run-wide transaction.
      */
-    private function runIncrementally(DeploymentPlan $plan, string $batchId, bool $transactional): ExecutionResult
+    private function runIncrementally(ExecutionPlan $plan, string $batchId, bool $transactional): ExecutionResult
     {
         $committed = [];
 
         foreach ($plan->actions as $action) {
             try {
                 if ($transactional) {
-                    DB::transaction(fn () => $this->execute($action, $batchId, $plan));
+                    $this->connection->transaction(fn () => $this->execute($action, $batchId, $plan));
                 } else {
                     $this->execute($action, $batchId, $plan);
                 }
@@ -66,12 +69,12 @@ final class Runner
     /**
      * Execute every pending action in one transaction.
      */
-    private function runEntirely(DeploymentPlan $plan, string $batchId): ExecutionResult
+    private function runEntirely(ExecutionPlan $plan, string $batchId): ExecutionResult
     {
         $current = null;
 
         try {
-            $committed = DB::transaction(function () use ($plan, $batchId, &$current): array {
+            $committed = $this->connection->transaction(function () use ($plan, $batchId, &$current): array {
                 $executed = [];
 
                 foreach ($plan->actions as $action) {
@@ -96,8 +99,10 @@ final class Runner
     /**
      * Invoke an action and record its successful return.
      */
-    private function execute(ActionPlan $action, string $batchId, DeploymentPlan $plan): void
+    private function execute(ActionPlan $action, string $batchId, ExecutionPlan $plan): void
     {
+        $this->integrity->verify($action->descriptor);
+
         $startedAt = hrtime(true);
         $action->action->handle();
         $durationMs = (int) ((hrtime(true) - $startedAt) / 1_000_000);
@@ -121,8 +126,10 @@ final class Runner
         string $batchId,
         array $committed,
         Throwable $exception,
-    ): ActionFailedException {
-        if ($exception instanceof ActionFailedException) {
+    ): Throwable {
+        if ($exception instanceof ActionFailedException
+            || $exception instanceof ActionChangedException
+            || $exception instanceof InvalidActionException) {
             return $exception;
         }
 
