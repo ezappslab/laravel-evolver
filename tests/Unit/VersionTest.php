@@ -2,6 +2,7 @@
 
 use Infinity\Evolver\Contracts\VersionResolver;
 use Infinity\Evolver\Exceptions\VersionResolutionException;
+use Infinity\Evolver\Exceptions\VersionResolverException;
 use Infinity\Evolver\Version\SemanticVersion;
 use Infinity\Evolver\Version\VersionInterval;
 use Infinity\Evolver\Version\VersionManager;
@@ -45,6 +46,16 @@ test('optional unresolved strategy produces no target but still filters', functi
 
     expect($manager->target())->toBeNull()
         ->and($manager->filtersActions())->toBeTrue();
+});
+
+test('optional strategies do not suppress resolver failures', function (): void {
+    $resolver = Mockery::mock(VersionResolver::class);
+    $resolver->shouldReceive('resolve')->once()->andThrow(new VersionResolverException('Version source failed'));
+
+    $manager = new VersionManager(VersionStrategy::Json, $resolver, false);
+
+    expect(fn () => $manager->target())
+        ->toThrow(VersionResolverException::class, 'Version source failed');
 });
 
 test('semantic versions support prerelease and build metadata', function (): void {
