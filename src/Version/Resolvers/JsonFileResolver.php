@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Infinity\Evolver\Version\Resolvers;
 
-use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Support\Facades\File;
 use Infinity\Evolver\Contracts\VersionResolver;
-use Infinity\Evolver\Exceptions\VersionResolutionException;
+use Infinity\Evolver\Exceptions\VersionResolverException;
 use JsonException;
+use Throwable;
 
 final class JsonFileResolver implements VersionResolver
 {
@@ -23,28 +23,52 @@ final class JsonFileResolver implements VersionResolver
     /**
      * Resolve the version from the JSON file.
      *
-     * @throws VersionResolutionException
+     * @throws VersionResolverException
      */
     public function resolve(): ?string
     {
-        if (! File::exists($this->path)) {
+        if (! $this->sourceExists()) {
             return null;
         }
 
         try {
             $contents = File::get($this->path);
-        } catch (FileNotFoundException) {
-            return null;
+        } catch (Throwable $exception) {
+            if (! $this->sourceExists()) {
+                return null;
+            }
+
+            throw new VersionResolverException("Unable to read JSON version file: {$this->path}", $exception);
         }
 
         try {
             $data = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
         } catch (JsonException $exception) {
-            throw new VersionResolutionException("Invalid JSON in file: {$this->path}", $exception);
+            throw new VersionResolverException("Invalid JSON in file: {$this->path}", $exception);
         }
 
         $value = data_get($data, $this->key);
 
-        return is_string($value) ? $value : null;
+        if ($value === null) {
+            return null;
+        }
+
+        if (! is_string($value)) {
+            throw new VersionResolverException(
+                "Version key [{$this->key}] in JSON file [{$this->path}] must contain a string.",
+            );
+        }
+
+        return $value;
+    }
+
+    /**
+     * Determine whether the configured source currently exists.
+     *
+     * @phpstan-impure
+     */
+    private function sourceExists(): bool
+    {
+        return File::exists($this->path);
     }
 }

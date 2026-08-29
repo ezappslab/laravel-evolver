@@ -61,7 +61,7 @@ When both bounds are present, `introducedIn` must be earlier than `requiredUntil
 - `json`: reads `versioning.json.path` at `versioning.json.key`.
 - `git`: reads the latest Git tag and removes `versioning.git.strip_prefix`.
 
-Non-`none` strategies require valid semantic versions, including optional prerelease and build metadata, and use semantic-version comparisons. If resolution fails, `versioning.required` determines whether planning throws or produces no applicable actions.
+Non-`none` strategies require valid semantic versions, including optional prerelease and build metadata, and use semantic-version comparisons. If a configured source contains no version, `versioning.required` determines whether planning throws or produces no applicable actions. Unreadable, malformed, or otherwise invalid sources always fail planning.
 
 Set `evolver.database.connection` to a Laravel connection name to use a dedicated connection. Evolution records, their migration, and package-managed transactions share this connection; a `null` value uses Laravel's default connection.
 

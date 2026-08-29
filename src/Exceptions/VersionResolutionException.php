@@ -6,7 +6,7 @@ namespace Infinity\Evolver\Exceptions;
 
 use Throwable;
 
-final class VersionResolutionException extends EvolverException
+class VersionResolutionException extends EvolverException
 {
     /**
      * Create an exception for an invalid or unresolved version strategy.
