@@ -6,6 +6,7 @@ use Infinity\Evolver\Contracts\VersionResolver;
 use Infinity\Evolver\Deploy\Planning\ActionDiscovery;
 use Infinity\Evolver\Deploy\Planning\ActionMaterializer;
 use Infinity\Evolver\Deploy\Planning\ActionStatus;
+use Infinity\Evolver\Deploy\Planning\ExecutionPlan;
 use Infinity\Evolver\Deploy\Planning\Planner;
 use Infinity\Evolver\Exceptions\ActionChangedException;
 use Infinity\Evolver\Exceptions\VersionResolutionException;
@@ -166,4 +167,17 @@ test('planner skips persistence when no actions are discovered', function (): vo
     )->plan();
 
     expect($plan->actions)->toBeEmpty();
+});
+
+test('execution plans reject actions that are not pending', function (): void {
+    writePlanningAction($this->actionsPath, 'already_executed');
+    $checksum = File::hash($this->actionsPath.'/already_executed.php', 'sha256');
+    $plan = plannerFor(
+        $this->actionsPath,
+        planningRepository(['already_executed' => $checksum]),
+        new VersionManager(VersionStrategy::None, null, true),
+    )->plan();
+
+    expect(fn () => new ExecutionPlan($plan->actions, $plan->targetVersion))
+        ->toThrow(InvalidArgumentException::class, 'must be pending; [executed] given');
 });

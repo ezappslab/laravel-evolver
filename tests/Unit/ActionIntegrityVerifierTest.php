@@ -97,7 +97,7 @@ test('runner checks integrity immediately before invoking an action', function (
         new ChecksumActionIntegrityVerifier,
     );
 
-    expect(fn () => $runner->run($plan, 'batch'))
+    expect(fn () => $runner->run($plan->executable(), 'batch'))
         ->toThrow(ActionChangedException::class)
         ->and(File::exists($this->markerPath))->toBeFalse();
 });

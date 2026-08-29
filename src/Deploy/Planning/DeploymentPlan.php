@@ -34,9 +34,9 @@ final class DeploymentPlan
     /**
      * Create a plan containing only pending actions.
      */
-    public function executable(): self
+    public function executable(): ExecutionPlan
     {
-        return new self($this->pending(), $this->targetVersion);
+        return new ExecutionPlan($this->pending(), $this->targetVersion);
     }
 
     /**

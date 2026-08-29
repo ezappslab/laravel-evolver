@@ -7,13 +7,14 @@ namespace Infinity\Evolver\Commands\Concerns;
 use Infinity\Evolver\Deploy\Planning\ActionPlan;
 use Infinity\Evolver\Deploy\Planning\ActionStatus;
 use Infinity\Evolver\Deploy\Planning\DeploymentPlan;
+use Infinity\Evolver\Deploy\Planning\ExecutionPlan;
 
 trait DisplaysActionList
 {
     /**
      * Display every action in the deployment plan.
      */
-    protected function displayPlan(DeploymentPlan $plan): void
+    protected function displayPlan(DeploymentPlan|ExecutionPlan $plan): void
     {
         if ($plan->actions === []) {
             $this->components->info('No actions found.');
