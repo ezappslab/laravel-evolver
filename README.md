@@ -82,6 +82,66 @@ An executed action whose SHA-256 checksum changes causes planning to fail when `
 
 Before each pending action executes, Evolver recomputes its checksum and aborts if the file has changed or disappeared since planning. This execution-time integrity check is always enabled.
 
+## API versioning
+
+Evolver can register URL-based major API versions and manage their runtime lifecycle independently from the application version used for evolution actions. The feature is opt-in:
+
+```php
+'api' => [
+    'enabled' => true,
+    'base_path' => 'api',
+    'versions' => [
+        'v1' => [
+            'routes' => base_path('routes/api/v1.php'),
+            'middleware' => ['api'],
+            'deprecated_at' => '2027-01-01T00:00:00Z',
+            'sunset_at' => '2027-08-01T00:00:00Z',
+            'successor' => 'v2',
+            'successor_url' => '/api/v2',
+        ],
+        'v2' => [
+            'routes' => base_path('routes/api/v2.php'),
+            'middleware' => ['api'],
+        ],
+    ],
+],
+```
+
+Routes in these files are exposed at `/api/v1`, `/api/v2`, and so on. API versions must use major identifiers such as `v1`; each successor must also be registered. A sunset date requires an earlier deprecation date.
+
+Evolver loads every route file listed under `evolver.api.versions`; do not also register those files in Laravel's `bootstrap/app.php`. If all API routes are managed by Evolver, remove Laravel's default `api:` entry:
+
+```php
+->withRouting(
+    web: __DIR__.'/../routes/web.php',
+    commands: __DIR__.'/../routes/console.php',
+    health: '/up',
+)
+```
+
+You may keep the `api: __DIR__.'/../routes/api.php'` entry when the application intentionally has additional, unversioned API routes in that file. Evolver's versioned files, such as `routes/api/v1.php`, must remain separate to avoid duplicate route registration.
+
+Controllers and other route handlers may resolve the request-scoped context:
+
+```php
+use Infinity\Evolver\Api\ApiVersionContext;
+
+public function __invoke(ApiVersionContext $context): array
+{
+    return ['api_version' => $context->version()->value];
+}
+```
+
+Deprecated versions emit `Deprecation`, `Sunset`, and optional successor `Link` headers. Sunset versions return `410 Gone`; malformed and unsupported versions return stable JSON errors. Unknown routes within a supported version return a stable `api_route_not_found` error.
+
+Inspect configured lifecycle states with:
+
+```bash
+php artisan evolver:api-status
+```
+
+The URL resolver implements `ApiVersionResolver`, allowing applications to replace URL negotiation later without changing the registry, lifecycle, or request-context APIs.
+
 ## Deploying and transactions
 
 ```bash
