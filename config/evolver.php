@@ -19,6 +19,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Database Connection
+    |--------------------------------------------------------------------------
+    |
+    | The connection used for evolution records and package-managed
+    | transactions. A null value uses Laravel's default connection.
+    |
+    */
+
+    'database' => [
+        'connection' => null,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Transaction Mode
     |--------------------------------------------------------------------------
     |

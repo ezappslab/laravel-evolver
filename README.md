@@ -62,7 +62,7 @@ The interval includes `introducedIn` and excludes `requiredUntil`. Either bound 
 
 Non-`none` strategies require valid semantic versions, including optional prerelease and build metadata, and use semantic-version comparisons. If resolution fails, `versioning.required` determines whether planning throws or produces no applicable actions.
 
-Evolution records and package-managed transactions use Laravel's default database connection.
+Set `evolver.database.connection` to a Laravel connection name to use a dedicated connection. Evolution records, their migration, and package-managed transactions share this connection; a `null` value uses Laravel's default connection.
 
 ## Planning and status
 
@@ -93,7 +93,7 @@ Pending actions run sequentially in planned order and execution stops at the fir
 - `per_action`: each action and its Evolution record share a transaction. Earlier actions remain committed; the failed action's work on Laravel's default connection rolls back.
 - `entire_run`: every current-run action and record shares one transaction. Any failure rolls all of them back and reports no current-run action as committed.
 
-These transaction guarantees apply only to writes using Laravel's default database connection. Filesystem changes, network/API calls, queues, cache, mail, external services, and writes on other database connections are not rolled back. Avoid irreversible external effects when database rollback semantics are required.
+These transaction guarantees apply only to writes using the connection selected by `evolver.database.connection`. Filesystem changes, network/API calls, queues, cache, mail, external services, and writes on other database connections are not rolled back. Avoid irreversible external effects when database rollback semantics are required.
 
 ## Development
 
