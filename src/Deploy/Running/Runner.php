@@ -8,7 +8,7 @@ use Illuminate\Database\ConnectionInterface;
 use Infinity\Evolver\Contracts\ActionIntegrityVerifier;
 use Infinity\Evolver\Contracts\EvolutionRepository;
 use Infinity\Evolver\Deploy\Planning\ActionPlan;
-use Infinity\Evolver\Deploy\Planning\DeploymentPlan;
+use Infinity\Evolver\Deploy\Planning\ExecutionPlan;
 use Infinity\Evolver\Exceptions\ActionChangedException;
 use Infinity\Evolver\Exceptions\ActionFailedException;
 use Infinity\Evolver\Exceptions\InvalidActionException;
@@ -29,10 +29,8 @@ final class Runner
     /**
      * Execute the pending actions in their planned order.
      */
-    public function run(DeploymentPlan $plan, string $batchId): ExecutionResult
+    public function run(ExecutionPlan $plan, string $batchId): ExecutionResult
     {
-        $plan = $plan->executable();
-
         if ($plan->actions === []) {
             return new ExecutionResult($batchId, []);
         }
@@ -47,7 +45,7 @@ final class Runner
     /**
      * Execute actions without a run-wide transaction.
      */
-    private function runIncrementally(DeploymentPlan $plan, string $batchId, bool $transactional): ExecutionResult
+    private function runIncrementally(ExecutionPlan $plan, string $batchId, bool $transactional): ExecutionResult
     {
         $committed = [];
 
@@ -71,7 +69,7 @@ final class Runner
     /**
      * Execute every pending action in one transaction.
      */
-    private function runEntirely(DeploymentPlan $plan, string $batchId): ExecutionResult
+    private function runEntirely(ExecutionPlan $plan, string $batchId): ExecutionResult
     {
         $current = null;
 
@@ -101,7 +99,7 @@ final class Runner
     /**
      * Invoke an action and record its successful return.
      */
-    private function execute(ActionPlan $action, string $batchId, DeploymentPlan $plan): void
+    private function execute(ActionPlan $action, string $batchId, ExecutionPlan $plan): void
     {
         $this->integrity->verify($action->descriptor);
 

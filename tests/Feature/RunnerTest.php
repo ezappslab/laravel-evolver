@@ -59,7 +59,7 @@ function runMode(TransactionMode $mode, ?string $failure = null): mixed
     $integrity->shouldReceive('verify')->times(3);
     $runner = new Runner(new DatabaseEvolutionRepository($connection), $mode, $connection, $integrity);
 
-    return $runner->run(runnerPlan($failure), '00000000-0000-0000-0000-000000000001');
+    return $runner->run(runnerPlan($failure)->executable(), '00000000-0000-0000-0000-000000000001');
 }
 
 test('none keeps prior effects and records when a later action fails', function (): void {
@@ -175,7 +175,7 @@ test('configured connection is shared by evolution persistence and transactions'
     $this->app->instance(ActionIntegrityVerifier::class, $integrity);
     $runner = $this->app->make(Runner::class);
 
-    expect(fn () => $runner->run($plan, '00000000-0000-0000-0000-000000000001'))
+    expect(fn () => $runner->run($plan->executable(), '00000000-0000-0000-0000-000000000001'))
         ->toThrow(ActionFailedException::class)
         ->and($connection->table('evolver_effects')->count())->toBe(0)
         ->and($connection->table('evolutions')->count())->toBe(0)
