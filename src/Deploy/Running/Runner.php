@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace Infinity\Evolver\Deploy\Running;
 
 use Illuminate\Database\ConnectionInterface;
+use Infinity\Evolver\Contracts\ActionIntegrityVerifier;
 use Infinity\Evolver\Contracts\EvolutionRepository;
 use Infinity\Evolver\Deploy\Planning\ActionPlan;
 use Infinity\Evolver\Deploy\Planning\DeploymentPlan;
+use Infinity\Evolver\Exceptions\ActionChangedException;
 use Infinity\Evolver\Exceptions\ActionFailedException;
+use Infinity\Evolver\Exceptions\InvalidActionException;
 use Throwable;
 
 final class Runner
@@ -20,6 +23,7 @@ final class Runner
         private readonly EvolutionRepository $repository,
         private readonly TransactionMode $transactionMode,
         private readonly ConnectionInterface $connection,
+        private readonly ActionIntegrityVerifier $integrity,
     ) {}
 
     /**
@@ -99,6 +103,8 @@ final class Runner
      */
     private function execute(ActionPlan $action, string $batchId, DeploymentPlan $plan): void
     {
+        $this->integrity->verify($action->descriptor);
+
         $startedAt = hrtime(true);
         $action->action->handle();
         $durationMs = (int) ((hrtime(true) - $startedAt) / 1_000_000);
@@ -122,8 +128,10 @@ final class Runner
         string $batchId,
         array $committed,
         Throwable $exception,
-    ): ActionFailedException {
-        if ($exception instanceof ActionFailedException) {
+    ): Throwable {
+        if ($exception instanceof ActionFailedException
+            || $exception instanceof ActionChangedException
+            || $exception instanceof InvalidActionException) {
             return $exception;
         }
 

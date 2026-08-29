@@ -6,6 +6,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Infinity\Evolver\Contracts\Action;
+use Infinity\Evolver\Contracts\ActionIntegrityVerifier;
 use Infinity\Evolver\Database\DatabaseEvolutionRepository;
 use Infinity\Evolver\Deploy\Planning\ActionDescriptor;
 use Infinity\Evolver\Deploy\Planning\ActionPlan;
@@ -54,7 +55,9 @@ function runnerPlan(?string $failure = null): DeploymentPlan
 function runMode(TransactionMode $mode, ?string $failure = null): mixed
 {
     $connection = DB::connection();
-    $runner = new Runner(new DatabaseEvolutionRepository($connection), $mode, $connection);
+    $integrity = Mockery::mock(ActionIntegrityVerifier::class);
+    $integrity->shouldReceive('verify')->times(3);
+    $runner = new Runner(new DatabaseEvolutionRepository($connection), $mode, $connection, $integrity);
 
     return $runner->run(runnerPlan($failure), '00000000-0000-0000-0000-000000000001');
 }
@@ -167,6 +170,9 @@ test('configured connection is shared by evolution persistence and transactions'
         ),
     ], null);
 
+    $integrity = Mockery::mock(ActionIntegrityVerifier::class);
+    $integrity->shouldReceive('verify')->once();
+    $this->app->instance(ActionIntegrityVerifier::class, $integrity);
     $runner = $this->app->make(Runner::class);
 
     expect(fn () => $runner->run($plan, '00000000-0000-0000-0000-000000000001'))

@@ -9,12 +9,14 @@ use Illuminate\Database\DatabaseManager;
 use Infinity\Evolver\Commands\ActionMakeCommand;
 use Infinity\Evolver\Commands\DeployCommand;
 use Infinity\Evolver\Commands\StatusCommand;
+use Infinity\Evolver\Contracts\ActionIntegrityVerifier;
 use Infinity\Evolver\Contracts\EvolutionRepository;
 use Infinity\Evolver\Contracts\VersionResolver;
 use Infinity\Evolver\Database\DatabaseEvolutionRepository;
 use Infinity\Evolver\Deploy\Planning\ActionDiscovery;
 use Infinity\Evolver\Deploy\Planning\ActionMaterializer;
 use Infinity\Evolver\Deploy\Planning\Planner;
+use Infinity\Evolver\Deploy\Running\ChecksumActionIntegrityVerifier;
 use Infinity\Evolver\Deploy\Running\Runner;
 use Infinity\Evolver\Deploy\Running\TransactionMode;
 use Infinity\Evolver\Exceptions\VersionResolutionException;
@@ -54,6 +56,7 @@ final class EvolverServiceProvider extends PackageServiceProvider
         $this->app->bind(EvolutionRepository::class, fn (): EvolutionRepository => new DatabaseEvolutionRepository(
             $this->databaseConnection(),
         ));
+        $this->app->bind(ActionIntegrityVerifier::class, ChecksumActionIntegrityVerifier::class);
         $this->app->bind(ActionDiscovery::class, fn (): ActionDiscovery => new ActionDiscovery(
             (string) config('evolver.actions_path', base_path('deploy/actions')),
         ));
@@ -81,6 +84,7 @@ final class EvolverServiceProvider extends PackageServiceProvider
                 $app->make(EvolutionRepository::class),
                 $this->transactionMode(),
                 $this->databaseConnection(),
+                $app->make(ActionIntegrityVerifier::class),
             );
         });
     }

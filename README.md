@@ -79,6 +79,8 @@ Both commands use the same authoritative Planner and display every discovered ac
 
 An executed action whose SHA-256 checksum changes causes planning to fail when `safety.fail_on_changed_action` is enabled. Dry-run performs discovery, materialization, version resolution, and Evolution reads, but never invokes actions, starts an execution transaction, or writes application/Evolution state.
 
+Before each pending action executes, Evolver recomputes its checksum and aborts if the file has changed or disappeared since planning. This execution-time integrity check is always enabled.
+
 ## Deploying and transactions
 
 ```bash
