@@ -9,6 +9,7 @@ use Infinity\Evolver\Contracts\EvolutionRepository;
 use Infinity\Evolver\Exceptions\ActionChangedException;
 use Infinity\Evolver\Exceptions\VersionResolutionException;
 use Infinity\Evolver\Version\SemanticVersion;
+use Infinity\Evolver\Version\VersionInterval;
 use Infinity\Evolver\Version\VersionManager;
 
 final class Planner
@@ -43,6 +44,7 @@ final class Planner
             $action = $this->materializer->materialize($descriptor);
             $introducedIn = $action->introducedIn();
             $requiredUntil = $action->requiredUntil();
+            $interval = $this->versionInterval($introducedIn, $requiredUntil, $descriptor);
 
             if (Arr::exists($executed, $descriptor->actionId)) {
                 if ($this->failOnChangedAction && $executed[$descriptor->actionId] !== $descriptor->checksum) {
@@ -56,7 +58,7 @@ final class Planner
 
                 $status = ActionStatus::Executed;
             } else {
-                $status = $this->isApplicable($introducedIn, $requiredUntil, $target, $descriptor)
+                $status = $this->isApplicable($interval, $target)
                     ? ActionStatus::Pending
                     : ActionStatus::NotApplicable;
             }
@@ -77,10 +79,8 @@ final class Planner
      * Determine whether an unexecuted action applies to the target version.
      */
     private function isApplicable(
-        ?string $introducedIn,
-        ?string $requiredUntil,
+        VersionInterval $interval,
         ?SemanticVersion $target,
-        ActionDescriptor $descriptor,
     ): bool {
         if (! $this->versions->filtersActions()) {
             return true;
@@ -90,19 +90,33 @@ final class Planner
             return false;
         }
 
-        if ($introducedIn !== null && $target->isLessThan($this->parseActionVersion(
-            $introducedIn,
-            'introducedIn',
-            $descriptor,
-        ))) {
-            return false;
-        }
+        return $interval->contains($target);
+    }
 
-        return $requiredUntil === null || $target->isLessThan($this->parseActionVersion(
-            $requiredUntil,
-            'requiredUntil',
-            $descriptor,
-        ));
+    /**
+     * Parse and validate an action's version interval.
+     */
+    private function versionInterval(
+        ?string $introducedIn,
+        ?string $requiredUntil,
+        ActionDescriptor $descriptor,
+    ): VersionInterval {
+        $introducedVersion = $introducedIn === null
+            ? null
+            : $this->parseActionVersion($introducedIn, 'introducedIn', $descriptor);
+        $requiredUntilVersion = $requiredUntil === null
+            ? null
+            : $this->parseActionVersion($requiredUntil, 'requiredUntil', $descriptor);
+
+        try {
+            return new VersionInterval($introducedVersion, $requiredUntilVersion);
+        } catch (VersionResolutionException $exception) {
+            throw new VersionResolutionException(
+                "Invalid version interval for action [{$descriptor->actionId}] at [{$descriptor->path}]: "
+                ."introducedIn [{$introducedIn}] must be less than requiredUntil [{$requiredUntil}].",
+                $exception,
+            );
+        }
     }
 
     /**

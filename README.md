@@ -49,6 +49,7 @@ return new class extends Action
 ```
 
 The interval includes `introducedIn` and excludes `requiredUntil`. Either bound may be `null`.
+When both bounds are present, `introducedIn` must be earlier than `requiredUntil`.
 
 ## Configuration
 
