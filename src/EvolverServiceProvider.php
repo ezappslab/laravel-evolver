@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Infinity\Evolver;
 
+use Illuminate\Database\Connection;
+use Illuminate\Database\DatabaseManager;
 use Infinity\Evolver\Commands\ActionMakeCommand;
 use Infinity\Evolver\Commands\DeployCommand;
 use Infinity\Evolver\Commands\StatusCommand;
@@ -49,7 +51,9 @@ final class EvolverServiceProvider extends PackageServiceProvider
      */
     public function packageRegistered(): void
     {
-        $this->app->bind(EvolutionRepository::class, DatabaseEvolutionRepository::class);
+        $this->app->bind(EvolutionRepository::class, fn (): EvolutionRepository => new DatabaseEvolutionRepository(
+            $this->databaseConnection(),
+        ));
         $this->app->bind(ActionDiscovery::class, fn (): ActionDiscovery => new ActionDiscovery(
             (string) config('evolver.actions_path', base_path('deploy/actions')),
         ));
@@ -76,6 +80,7 @@ final class EvolverServiceProvider extends PackageServiceProvider
             return new Runner(
                 $app->make(EvolutionRepository::class),
                 $this->transactionMode(),
+                $this->databaseConnection(),
             );
         });
     }
@@ -112,6 +117,17 @@ final class EvolverServiceProvider extends PackageServiceProvider
         }
 
         return $mode;
+    }
+
+    /**
+     * Get the connection shared by evolution persistence and transactions.
+     */
+    private function databaseConnection(): Connection
+    {
+        $configured = config('evolver.database.connection');
+        $connection = is_string($configured) && $configured !== '' ? $configured : null;
+
+        return $this->app->make(DatabaseManager::class)->connection($connection);
     }
 
     /**

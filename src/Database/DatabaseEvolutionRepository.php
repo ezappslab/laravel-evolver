@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace Infinity\Evolver\Database;
 
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Connection;
+use Illuminate\Database\Query\Builder;
 use Infinity\Evolver\Contracts\EvolutionRepository;
 use Infinity\Evolver\Exceptions\EvolutionTableMissingException;
 use Infinity\Evolver\Models\Evolution;
 
 final class DatabaseEvolutionRepository implements EvolutionRepository
 {
+    public function __construct(
+        private readonly Connection $connection,
+    ) {}
+
     /**
      * Get committed action checksums keyed by action identity.
      *
@@ -19,7 +23,7 @@ final class DatabaseEvolutionRepository implements EvolutionRepository
      */
     public function executed(): array
     {
-        if (! Schema::hasTable((new Evolution)->getTable())) {
+        if (! $this->connection->getSchemaBuilder()->hasTable((new Evolution)->getTable())) {
             throw new EvolutionTableMissingException;
         }
 
@@ -42,7 +46,7 @@ final class DatabaseEvolutionRepository implements EvolutionRepository
         int $durationMs,
     ): void {
         $this->query()
-            ->create([
+            ->insert([
                 'batch_id' => $batchId,
                 'action_id' => $actionId,
                 'checksum' => $checksum,
@@ -53,12 +57,10 @@ final class DatabaseEvolutionRepository implements EvolutionRepository
     }
 
     /**
-     * Start an Evolution query on Laravel's default connection.
-     *
-     * @return Builder<Evolution>
+     * Start an Evolution query on the configured connection.
      */
     private function query(): Builder
     {
-        return Evolution::query();
+        return $this->connection->table((new Evolution)->getTable());
     }
 }

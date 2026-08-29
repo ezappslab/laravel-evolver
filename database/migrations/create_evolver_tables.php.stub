@@ -10,7 +10,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('evolutions', function (Blueprint $table): void {
+        Schema::connection(config('evolver.database.connection'))->create('evolutions', function (Blueprint $table): void {
             $table->id();
             $table->uuid('batch_id');
             $table->string('action_id')->unique();
@@ -23,6 +23,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('evolutions');
+        Schema::connection(config('evolver.database.connection'))->dropIfExists('evolutions');
     }
 };

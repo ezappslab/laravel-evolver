@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Infinity\Evolver\Deploy\Running;
 
-use Illuminate\Support\Facades\DB;
+use Illuminate\Database\ConnectionInterface;
 use Infinity\Evolver\Contracts\EvolutionRepository;
 use Infinity\Evolver\Deploy\Planning\ActionPlan;
 use Infinity\Evolver\Deploy\Planning\DeploymentPlan;
@@ -19,6 +19,7 @@ final class Runner
     public function __construct(
         private readonly EvolutionRepository $repository,
         private readonly TransactionMode $transactionMode,
+        private readonly ConnectionInterface $connection,
     ) {}
 
     /**
@@ -49,7 +50,7 @@ final class Runner
         foreach ($plan->actions as $action) {
             try {
                 if ($transactional) {
-                    DB::transaction(fn () => $this->execute($action, $batchId, $plan));
+                    $this->connection->transaction(fn () => $this->execute($action, $batchId, $plan));
                 } else {
                     $this->execute($action, $batchId, $plan);
                 }
@@ -71,7 +72,7 @@ final class Runner
         $current = null;
 
         try {
-            $committed = DB::transaction(function () use ($plan, $batchId, &$current): array {
+            $committed = $this->connection->transaction(function () use ($plan, $batchId, &$current): array {
                 $executed = [];
 
                 foreach ($plan->actions as $action) {
