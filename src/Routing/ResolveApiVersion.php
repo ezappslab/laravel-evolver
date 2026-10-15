@@ -6,6 +6,7 @@ namespace Infinity\Evolver\Routing;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Infinity\Evolver\Exceptions\UnsupportedApiVersionException;
 use Infinity\Evolver\Exceptions\VersionResolutionException;
 use Infinity\Evolver\Versioning\VersionManager;
@@ -79,7 +80,7 @@ final class ResolveApiVersion
      */
     private function validate(string $version, array $supported): void
     {
-        if (! preg_match('/^[A-Za-z0-9][A-Za-z0-9._-]*$/', $version) || ($supported !== [] && ! in_array($version, $supported, true))) {
+        if (! Str::isMatch('/^[A-Za-z0-9][A-Za-z0-9._-]*$/', $version) || ($supported !== [] && ! in_array($version, $supported, true))) {
             throw new UnsupportedApiVersionException('The requested API version is unsupported.');
         }
     }

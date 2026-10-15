@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infinity\Evolver\Deployment;
 
+use Illuminate\Support\Str;
 use Infinity\Evolver\Contracts\ActionRepository;
 use Infinity\Evolver\Exceptions\ActionChangedException;
 use Infinity\Evolver\Exceptions\InvalidActionException;
@@ -123,7 +124,7 @@ final class Planner
         $min = $descriptor->action->introducedIn();
         $max = $descriptor->action->expiresAt();
         foreach ([$min, $max] as $constraint) {
-            if ($constraint !== null && ! preg_match('/^v?\d+(?:\.\d+){0,3}(?:[-+][0-9A-Za-z.-]+)?$/', $constraint)) {
+            if ($constraint !== null && ! Str::isMatch('/^v?\d+(?:\.\d+){0,3}(?:[-+][0-9A-Za-z.-]+)?$/', $constraint)) {
                 throw new InvalidActionException("Action [{$descriptor->id}] has invalid version [{$constraint}].");
             }
         }

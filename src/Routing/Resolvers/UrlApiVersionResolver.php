@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infinity\Evolver\Routing\Resolvers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Infinity\Evolver\Contracts\ApiVersionResolver;
 
 /** Extracts the first path segment following the configured API base path. */
@@ -24,6 +25,8 @@ final class UrlApiVersionResolver implements ApiVersionResolver
     {
         $pattern = '#^'.preg_quote(trim($this->basePath, '/'), '#').'/([^/]+)(?:/|$)#';
 
-        return preg_match($pattern, trim($request->path(), '/'), $matches) === 1 ? $matches[1] : null;
+        $version = Str::match($pattern, trim($request->path(), '/'));
+
+        return $version === '' ? null : $version;
     }
 }

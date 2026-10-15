@@ -6,6 +6,7 @@ namespace Infinity\Evolver\Versioning;
 
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Infinity\Evolver\Contracts\ApiVersionResolver;
 use Infinity\Evolver\Contracts\ApplicationVersionResolver;
 use Infinity\Evolver\Exceptions\VersionResolutionException;
@@ -35,7 +36,7 @@ final class VersionManager
     {
         $version = $this->applicationResolver()->resolve();
 
-        if ($version !== null && ! preg_match('/^v?\d+(?:\.\d+){0,3}(?:[-+][0-9A-Za-z.-]+)?$/', $version)) {
+        if ($version !== null && ! Str::isMatch('/^v?\d+(?:\.\d+){0,3}(?:[-+][0-9A-Za-z.-]+)?$/', $version)) {
             throw new VersionResolutionException('The resolved application version is invalid.');
         }
 
