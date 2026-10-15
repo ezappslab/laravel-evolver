@@ -7,10 +7,12 @@ namespace Infinity\Evolver\Routing;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Infinity\Evolver\Exceptions\MissingApiVersionException;
 use Infinity\Evolver\Exceptions\UnsupportedApiVersionException;
 use Infinity\Evolver\Exceptions\VersionResolutionException;
 use Infinity\Evolver\Versioning\VersionManager;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /** Rewrites only configured header-versioned API paths before route matching. */
 final class ResolveApiVersion
@@ -26,8 +28,12 @@ final class ResolveApiVersion
      * Header mode rebuilds the Symfony request using the internal path while
      * preserving its method, headers, query, body, cookies, files, and request
      * attributes. The original URI remains available to downstream code.
+     * Rejections are thrown as HTTP exceptions so the application's exception
+     * handler renders them consistently.
      *
      *
+     * @throws MissingApiVersionException
+     * @throws NotFoundHttpException
      * @throws UnsupportedApiVersionException
      * @throws VersionResolutionException
      */
@@ -45,11 +51,11 @@ final class ResolveApiVersion
         if ($resolver === 'header') {
             $first = explode('/', substr($path, strlen($base) + 1))[0];
             if (in_array($first, $supported, true)) {
-                return response('Not Found', 404);
+                throw new NotFoundHttpException;
             }
 
             if ($version === null) {
-                return response()->json(['message' => 'API version header is required.'], 400);
+                throw new MissingApiVersionException('The API version header is required.');
             }
 
             $this->validate($version, $supported);

@@ -193,3 +193,11 @@ it('rewrites only managed header-versioned paths before matching', function (): 
     $this->get('/ordinary')->assertOk()->assertSee('ordinary');
     $this->withHeader('X-API-Version', 'v2')->get('/api/v2/users/42')->assertNotFound();
 });
+it('renders header-mode rejections through the exception handler', function (): void {
+    config()->set('evolver.versioning.api.resolver', 'header');
+    config()->set('evolver.versioning.api.versions', ['v1', 'v2']);
+    Route::apiVersion('v2', fn () => Route::get('/users', fn () => 'users'), []);
+    $this->getJson('/api/users')->assertStatus(400)->assertJson(['message' => 'The API version header is required.']);
+    $this->getJson('/api/users', ['X-API-Version' => 'v9'])->assertNotFound()->assertJson(['message' => 'The requested API version is unsupported.']);
+    $this->getJson('/api/v2/users', ['X-API-Version' => 'v2'])->assertNotFound()->assertJsonStructure(['message']);
+});
