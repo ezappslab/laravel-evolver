@@ -50,7 +50,9 @@ final class GitTagResolver implements ApplicationVersionResolver
         $tag = trim($process->getOutput());
         foreach ($this->prefixes as $prefix) {
             if ($prefix !== '' && str_starts_with($tag, $prefix)) {
-                return substr($tag, strlen($prefix));
+                $tag = substr($tag, strlen($prefix));
+
+                break;
             }
         }
 

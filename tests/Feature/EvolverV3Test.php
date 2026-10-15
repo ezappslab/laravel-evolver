@@ -233,6 +233,10 @@ it('resolves Git tags from worktrees and nested application paths', function ():
             ->and((new GitTagResolver($root.'/repo/backend'))->resolve())->toBe('1.4.0')
             ->and(fn () => (new GitTagResolver($root.'/plain'))->resolve())->toThrow(VersionResolutionException::class, 'Git metadata is unavailable.')
             ->and(fn () => (new GitTagResolver($root.'/missing'))->resolve())->toThrow(VersionResolutionException::class, 'Git metadata is unavailable.');
+
+        $git($root.'/repo', 'commit', '-q', '--allow-empty', '-m', 'prefix only');
+        $git($root.'/repo', 'tag', 'v');
+        expect((new GitTagResolver($root.'/repo'))->resolve())->toBeNull();
     } finally {
         (new Filesystem)->deleteDirectory($root);
     }
