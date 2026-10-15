@@ -36,7 +36,7 @@ final class DeployCommand extends Command
      */
     public function handle(DeploymentManager $manager): int
     {
-        if ($this->laravel->environment('production') && ! $this->option('force') && ! $this->confirmToProceed()) {
+        if (! $this->confirmToProceed()) {
             return self::FAILURE;
         }
 
