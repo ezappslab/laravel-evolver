@@ -4,11 +4,43 @@ declare(strict_types=1);
 
 namespace Infinity\Evolver\Deployment;
 
-/** Immutable discovered action metadata. */
-final readonly class ActionDescriptor
+use Infinity\Evolver\Exceptions\InvalidActionException;
+
+/** Discovered action metadata whose action object is loaded on first use. */
+final class ActionDescriptor
 {
     /**
-     * Create a new action descriptor instance.
+     * The loaded action, or the loader that produces it on first use.
+     *
+     * @var Action|\Closure(): Action
      */
-    public function __construct(public string $id, public string $path, public string $checksum, public Action $action) {}
+    private Action|\Closure $action;
+
+    /**
+     * Create a new action descriptor instance.
+     *
+     * @param  Action|\Closure(): Action  $action
+     */
+    public function __construct(public readonly string $id, public readonly string $path, public readonly string $checksum, Action|\Closure $action)
+    {
+        $this->action = $action;
+    }
+
+    /**
+     * Get the action, loading its source on first access.
+     *
+     * Executed actions are only checksum-compared, so their source is never
+     * loaded unless they are planned for rollback.
+     *
+     *
+     * @throws InvalidActionException
+     */
+    public function action(): Action
+    {
+        if ($this->action instanceof \Closure) {
+            $this->action = ($this->action)();
+        }
+
+        return $this->action;
+    }
 }

@@ -54,7 +54,7 @@ return new class extends Action {
 };
 ```
 
-Planning loads action objects but never invokes `up()` or `down()`. Plans are immutable and dry runs use the same planner. Omitting `down()` makes rollback explicitly fail as irreversible.
+Planning checksums every action file but loads only the actions it may run: actions not yet executed for a deploy or status and the batch's actions for a rollback. It never invokes `up()` or `down()`, and an executed action that no longer loads does not block later deploys. Plans are immutable and dry runs use the same planner. Omitting `down()` makes rollback explicitly fail as irreversible.
 
 ## Deploy, status, and rollback
 

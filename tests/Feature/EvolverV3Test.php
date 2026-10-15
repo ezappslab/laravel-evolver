@@ -155,6 +155,37 @@ it('classifies every action state for status reporting', function (): void {
         ])
         ->assertSuccessful();
 });
+it('loads only the action files a plan needs', function (): void {
+    $source = fn (string $id): string => "<?php \$GLOBALS['evolver_loads'][] = '{$id}'; if (! empty(\$GLOBALS['evolver_broken'])) { throw new RuntimeException('gone'); } return new class extends Infinity\\Evolver\\Deployment\\Action { public function up(): void {} public function down(): void {} };";
+    file_put_contents($this->actions.'/001_old.php', $source('001_old'));
+    app(DeploymentManager::class)->deploy();
+    file_put_contents($this->actions.'/002_new.php', $source('002_new'));
+
+    $GLOBALS['evolver_loads'] = [];
+    app(DeploymentManager::class)->deploy();
+    expect($GLOBALS['evolver_loads'])->toBe(['002_new']);
+
+    $GLOBALS['evolver_loads'] = [];
+    $GLOBALS['evolver_broken'] = true;
+    expect(app(DeploymentManager::class)->status()->stateOf('001_old'))->toBe(ActionState::Executed)
+        ->and(app(DeploymentManager::class)->plan()->isEmpty())->toBeTrue()
+        ->and($GLOBALS['evolver_loads'])->toBe([])
+        ->and(fn () => app(DeploymentManager::class)->rollbackPlan())->toThrow(InvalidActionException::class, 'Unable to load action [002_new].');
+
+    $GLOBALS['evolver_loads'] = [];
+    $GLOBALS['evolver_broken'] = false;
+    app(DeploymentManager::class)->rollback();
+    expect($GLOBALS['evolver_loads'])->toBe(['002_new']);
+    unset($GLOBALS['evolver_loads'], $GLOBALS['evolver_broken']);
+});
+it('rejects pending actions that cannot be loaded', function (string $source, string $message): void {
+    file_put_contents($this->actions.'/001_invalid.php', $source);
+    expect(fn () => app(DeploymentManager::class)->status())->toThrow(InvalidActionException::class, $message)
+        ->and(fn () => app(DeploymentManager::class)->plan())->toThrow(InvalidActionException::class, $message);
+})->with([
+    'throws while loading' => ['<?php throw new RuntimeException("boom");', 'Unable to load action [001_invalid].'],
+    'returns a non-action' => ['<?php return 42;', 'Action [001_invalid] must return an instance of'],
+]);
 it('never records failed operations', function (): void {
     makeAction($this->actions, '001_test', "throw new RuntimeException('failure');");
     expect(fn () => app(DeploymentManager::class)->deploy())->toThrow(ActionExecutionException::class)->and(Schema::getConnection()->table('evolutions')->count())->toBe(0);

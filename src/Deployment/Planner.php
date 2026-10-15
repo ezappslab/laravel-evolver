@@ -74,6 +74,8 @@ final class Planner
      * Rollback cannot proceed without the original action source because its
      * down operation and checksum are required for a safe reversal. The
      * application version is not resolved because reversals never record it.
+     * Each planned action is loaded here so a broken source fails planning,
+     * including pretend runs, instead of surfacing mid-rollback.
      *
      *
      * @throws ActionChangedException
@@ -101,6 +103,7 @@ final class Planner
                 throw new ActionChangedException("Executed action [{$record->id}] changed; rollback cannot continue.");
             }
 
+            $descriptor->action();
             $actions[] = new PlannedAction($descriptor, $record);
         }
         usort($actions, static fn (PlannedAction $a, PlannedAction $b): int => $b->descriptor->id <=> $a->descriptor->id);
@@ -120,8 +123,8 @@ final class Planner
      */
     private function applies(ActionDescriptor $descriptor, ?string $version): bool
     {
-        $min = $descriptor->action->introducedIn();
-        $max = $descriptor->action->expiresAt();
+        $min = $descriptor->action()->introducedIn();
+        $max = $descriptor->action()->expiresAt();
         foreach ([$min, $max] as $constraint) {
             if ($constraint !== null && ! VersionManager::isValid($constraint)) {
                 throw new InvalidActionException("Action [{$descriptor->id}] has invalid version [{$constraint}].");

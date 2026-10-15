@@ -7,7 +7,7 @@ namespace Infinity\Evolver\Deployment;
 use Illuminate\Filesystem\Filesystem;
 use Infinity\Evolver\Exceptions\InvalidActionException;
 
-/** Loads action objects but never invokes their deployment methods. */
+/** Locates and fingerprints action files, loading them only on demand and never invoking their deployment methods. */
 final class ActionDiscovery
 {
     /**
@@ -16,8 +16,9 @@ final class ActionDiscovery
     public function __construct(private readonly Filesystem $files, private readonly string $path) {}
 
     /**
-     * Discover valid PHP actions in deterministic, case-sensitive filename order.
+     * Discover PHP actions in deterministic, case-sensitive filename order.
      *
+     * Files are hashed here but loaded only when their action is first used.
      * Case-insensitive identity comparison prevents deployments from changing
      * behavior when moved between case-sensitive and insensitive filesystems.
      *
@@ -43,18 +44,30 @@ final class ActionDiscovery
             }
             $identities[$normalized] = true;
             $path = $file->getRealPath();
-            try {
-                $action = $this->files->getRequire($path);
-            } catch (\Throwable $e) {
-                throw new InvalidActionException("Unable to load action [{$id}].", 0, $e);
-            }
-            if (! $action instanceof Action) {
-                throw new InvalidActionException("Action [{$id}] must return an instance of ".Action::class.'.');
-            }
-            $result[] = new ActionDescriptor($id, $path, hash_file('sha256', $path), $action);
+            $result[] = new ActionDescriptor($id, $path, hash_file('sha256', $path), fn (): Action => $this->load($id, $path));
         }
         usort($result, static fn (ActionDescriptor $a, ActionDescriptor $b): int => $a->id <=> $b->id);
 
         return $result;
+    }
+
+    /**
+     * Load the action returned by the given file.
+     *
+     *
+     * @throws InvalidActionException
+     */
+    private function load(string $id, string $path): Action
+    {
+        try {
+            $action = $this->files->getRequire($path);
+        } catch (\Throwable $e) {
+            throw new InvalidActionException("Unable to load action [{$id}].", 0, $e);
+        }
+        if (! $action instanceof Action) {
+            throw new InvalidActionException("Action [{$id}] must return an instance of ".Action::class.'.');
+        }
+
+        return $action;
     }
 }

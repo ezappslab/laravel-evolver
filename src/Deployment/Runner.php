@@ -105,10 +105,10 @@ final class Runner
 
         $start = hrtime(true);
         if ($plan->direction === Direction::Up) {
-            $action->descriptor->action->up();
+            $action->descriptor->action()->up();
             $this->repository->record($action->descriptor->id, $checksum, $plan->batch, (int) ((hrtime(true) - $start) / 1_000_000), $plan->applicationVersion);
         } else {
-            $action->descriptor->action->down();
+            $action->descriptor->action()->down();
             $this->repository->remove($action->descriptor->id);
         }
     }
