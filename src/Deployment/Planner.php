@@ -72,18 +72,18 @@ final class Planner
      * Build a reverse-ordered plan for a committed batch.
      *
      * Rollback cannot proceed without the original action source because its
-     * down operation and checksum are required for a safe reversal.
+     * down operation and checksum are required for a safe reversal. The
+     * application version is not resolved because reversals never record it.
      *
      *
      * @throws ActionChangedException
      * @throws InvalidActionException
-     * @throws VersionResolutionException
      */
     public function rollback(?string $batch = null): ExecutionPlan
     {
         $batch ??= $this->repository->latestBatch();
         if ($batch === null) {
-            return new ExecutionPlan(Direction::Down, [], '', $this->versions->application());
+            return new ExecutionPlan(Direction::Down, [], '');
         }
         $found = [];
         foreach ($this->discovery->discover() as $a) {
@@ -105,7 +105,7 @@ final class Planner
         }
         usort($actions, static fn (PlannedAction $a, PlannedAction $b): int => $b->descriptor->id <=> $a->descriptor->id);
 
-        return new ExecutionPlan(Direction::Down, $actions, $batch, $this->versions->application());
+        return new ExecutionPlan(Direction::Down, $actions, $batch);
     }
 
     /**

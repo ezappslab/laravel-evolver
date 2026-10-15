@@ -76,6 +76,16 @@ it('deploys once in filename order and rolls back in reverse order', function ()
     $manager->rollback();
     expect(file_get_contents($this->actions.'/log'))->toBe('12ba')->and(Schema::getConnection()->table('evolutions')->count())->toBe(0);
 });
+it('rolls back without resolving the application version', function (): void {
+    makeAction($this->actions, '2026_01_01_000001_first', '', "file_put_contents('{$this->actions}/log','a');");
+    $manager = app(DeploymentManager::class);
+    $manager->deploy();
+    config()->set('evolver.versioning.application.resolver', 'file');
+    config()->set('evolver.versioning.application.resolvers.file.path', $this->actions.'/MISSING');
+    $result = $manager->rollback();
+    expect($result->completed)->toBe(['2026_01_01_000001_first'])->and(file_get_contents($this->actions.'/log'))->toBe('a')
+        ->and($manager->rollbackPlan()->applicationVersion)->toBeNull();
+});
 it('uses the real plan for dry runs without side effects', function (): void {
     makeAction($this->actions, '2026_01_01_000001_test', "file_put_contents('{$this->actions}/effect','x');");
     $plan = app(DeploymentManager::class)->deploy(true);

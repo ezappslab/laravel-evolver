@@ -50,7 +50,6 @@ final class DeploymentManager
      *
      * @throws ActionChangedException
      * @throws InvalidActionException
-     * @throws VersionResolutionException
      */
     public function rollbackPlan(?string $batch = null): ExecutionPlan
     {

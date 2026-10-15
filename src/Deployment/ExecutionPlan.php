@@ -10,7 +10,8 @@ final readonly class ExecutionPlan
     /**
      * Create a new execution plan instance.
      *
-     * The actions are ordered for the selected direction.
+     * The actions are ordered for the selected direction. The application
+     * version is only resolved for forward plans, where it is recorded.
      *
      * @param  list<PlannedAction>  $actions
      */
