@@ -16,6 +16,8 @@ final class DatabaseActionRepository implements ActionRepository
 {
     public const TABLE = 'evolutions';
 
+    private bool $available = false;
+
     /**
      * Create a new database action repository instance.
      */
@@ -24,14 +26,23 @@ final class DatabaseActionRepository implements ActionRepository
     /**
      * Ensure the migrations have created the history table.
      *
+     * Only a positive result is cached, so a missing table is re-checked on
+     * every call until it has been migrated.
+     *
      *
      * @throws RepositoryUnavailableException
      */
     public function ensureAvailable(): void
     {
+        if ($this->available) {
+            return;
+        }
+
         if (! $this->connection->getSchemaBuilder()->hasTable(self::TABLE)) {
             throw new RepositoryUnavailableException('The evolutions table is missing. Publish and run Evolver migrations first.');
         }
+
+        $this->available = true;
     }
 
     /**

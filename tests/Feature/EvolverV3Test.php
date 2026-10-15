@@ -2,12 +2,14 @@
 
 declare(strict_types=1);
 use Illuminate\Contracts\Cache\LockProvider;
+use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Infinity\Evolver\Contracts\ApplicationVersionResolver;
+use Infinity\Evolver\Database\DatabaseActionRepository;
 use Infinity\Evolver\Deployment\ActionDiscovery;
 use Infinity\Evolver\Deployment\DeploymentManager;
 use Infinity\Evolver\Deployment\Direction;
@@ -19,6 +21,7 @@ use Infinity\Evolver\Exceptions\ActionChangedException;
 use Infinity\Evolver\Exceptions\ActionExecutionException;
 use Infinity\Evolver\Exceptions\InvalidActionException;
 use Infinity\Evolver\Exceptions\LockException;
+use Infinity\Evolver\Exceptions\RepositoryUnavailableException;
 use Infinity\Evolver\Routing\Resolvers\HeaderApiVersionResolver;
 use Infinity\Evolver\Routing\Resolvers\UrlApiVersionResolver;
 use Infinity\Evolver\Versioning\Resolvers\FileResolver;
@@ -110,6 +113,15 @@ it('preserves completed history in none mode and rolls batch history back', func
         ->and(Schema::getConnection()->table('evolutions')->count())->toBe($records);
 })->with([['none', 1], ['batch', 0]]);
 
+it('caches only a confirmed history table', function (): void {
+    $repository = new DatabaseActionRepository(Schema::getConnection());
+    Schema::rename('evolutions', 'evolutions_tmp');
+    expect(fn () => $repository->ensureAvailable())->toThrow(RepositoryUnavailableException::class);
+    Schema::rename('evolutions_tmp', 'evolutions');
+    $repository->ensureAvailable();
+    Schema::drop('evolutions');
+    expect(fn () => $repository->latestBatch())->toThrow(QueryException::class);
+});
 it('rejects concurrent deployment execution', function (): void {
     $lock = app(LockProvider::class)->lock('evolver:deployment', 30);
     expect($lock->get())->toBeTrue();
