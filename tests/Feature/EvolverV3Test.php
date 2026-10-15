@@ -27,6 +27,7 @@ use Infinity\Evolver\Exceptions\InvalidActionException;
 use Infinity\Evolver\Exceptions\LockException;
 use Infinity\Evolver\Exceptions\RepositoryUnavailableException;
 use Infinity\Evolver\Exceptions\VersionResolutionException;
+use Infinity\Evolver\Routing\ResolveApiVersion;
 use Infinity\Evolver\Routing\Resolvers\HeaderApiVersionResolver;
 use Infinity\Evolver\Routing\Resolvers\UrlApiVersionResolver;
 use Infinity\Evolver\Versioning\Resolvers\FileResolver;
@@ -304,6 +305,23 @@ it('rewrites only managed header-versioned paths before matching', function (): 
     $this->withHeader('X-API-Version', 'v2')->get('/api/users/42?ok=1')->assertOk()->assertSee('42|/api/users/42?ok=1');
     $this->get('/ordinary')->assertOk()->assertSee('ordinary');
     $this->withHeader('X-API-Version', 'v2')->get('/api/v2/users/42')->assertNotFound();
+});
+it('rewrites header-versioned requests without buffering the body', function (): void {
+    config()->set('evolver.versioning.api.resolver', 'header');
+    config()->set('evolver.versioning.api.versions', ['v2']);
+    Route::apiVersion('v2', fn () => Route::post('/users', fn (Request $request) => $request->input('name').'|'.$request->path()), []);
+    $this->withHeader('X-API-Version', 'v2')->postJson('/api/users?ok=1', ['name' => 'Ada'])->assertOk()->assertSee('Ada|api/v2/users');
+
+    $body = fopen('php://temp', 'r+');
+    fwrite($body, '{"name":"Ada"}');
+    $request = Request::create('/api/users', 'POST', server: ['HTTP_X_API_VERSION' => 'v2', 'CONTENT_TYPE' => 'application/json'], content: $body);
+    app(ResolveApiVersion::class)->handle($request, function (Request $internal) use ($body) {
+        expect($internal->path())->toBe('api/v2/users')
+            ->and($internal->getContent(true))->toBe($body)
+            ->and($internal->input('name'))->toBe('Ada');
+
+        return response('');
+    });
 });
 it('renders header-mode rejections through the exception handler', function (): void {
     config()->set('evolver.versioning.api.resolver', 'header');

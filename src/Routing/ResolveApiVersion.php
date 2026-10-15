@@ -25,9 +25,11 @@ final class ResolveApiVersion
     /**
      * Resolve API version information before Laravel matches a route.
      *
-     * Header mode rebuilds the Symfony request using the internal path while
-     * preserving its method, headers, query, body, cookies, files, and request
-     * attributes. The original URI remains available to downstream code.
+     * Header mode passes a duplicate of the request with the internal path to
+     * the next middleware, preserving its method, headers, query, cookies,
+     * files, and request attributes. The body is shared rather than read, so
+     * streamed payloads are not buffered. The original URI remains available
+     * to downstream code.
      * Rejections are thrown as HTTP exceptions so the application's exception
      * handler renders them consistently.
      *
@@ -64,7 +66,7 @@ final class ResolveApiVersion
             $external = $request->getRequestUri();
             $internal = '/'.$base.'/'.$version.$suffix.($query === null ? '' : '?'.$query);
             $server = array_replace($request->server->all(), ['REQUEST_URI' => $internal, 'PATH_INFO' => '/'.$base.'/'.$version.$suffix]);
-            $request->initialize($request->query->all(), $request->request->all(), $request->attributes->all(), $request->cookies->all(), $request->files->all(), $server, $request->getContent());
+            $request = $request->duplicate(server: $server);
             $request->attributes->set('_evolver_external_uri', $external);
             $request->attributes->set('_evolver_api_version', $version);
         } elseif ($version !== null) {
