@@ -2,22 +2,17 @@
 
 declare(strict_types=1);
 
-use Infinity\Evolver\Contracts\Action;
+use Infinity\Evolver\Deployment\Action;
 
 return new class extends Action
 {
-    public function introducedIn(): ?string
+    public function up(): void
     {
-        return null;
+        // Apply the deployment change.
     }
 
-    public function requiredUntil(): ?string
+    public function down(): void
     {
-        return null;
-    }
-
-    public function handle(): void
-    {
-        //
+        // Reverse the deployment change, or throw when it is irreversible.
     }
 };

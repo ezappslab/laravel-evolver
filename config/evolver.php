@@ -1,206 +1,316 @@
 <?php
 
-use Infinity\Evolver\Deploy\Running\TransactionMode;
-use Infinity\Evolver\Version\VersionStrategy;
+declare(strict_types=1);
 
 return [
-
     /*
     |--------------------------------------------------------------------------
-    | Actions Path
+    | Deployment Actions
     |--------------------------------------------------------------------------
     |
-    | This path contains the timestamped PHP action files discovered by the
-    | planner. Their filenames provide stable identities and execution order.
+    | Deployment actions are one-off PHP classes that run during a deploy,
+    | similar to migrations. These options control where they are stored.
     |
     */
 
-    'actions_path' => base_path('deploy/actions'),
+    'actions' => [
+
+        /*
+        |----------------------------------------------------------------------
+        | Actions Path
+        |----------------------------------------------------------------------
+        |
+        | Evolver discovers PHP action files in this directory. Timestamped
+        | file names provide both the stable action identity and execution
+        | order. The "evolver:action" command also writes new actions here.
+        |
+        */
+
+        'path' => base_path('deploy/actions'),
+    ],
 
     /*
     |--------------------------------------------------------------------------
-    | Database Connection
+    | Database
     |--------------------------------------------------------------------------
     |
-    | The connection used for evolution records and package-managed
-    | transactions. A null value uses Laravel's default connection.
+    | Evolver records every executed action in the database so it is never
+    | run twice and can be rolled back by batch.
     |
     */
 
     'database' => [
-        'connection' => null,
+
+        /*
+        |----------------------------------------------------------------------
+        | Database Connection
+        |----------------------------------------------------------------------
+        |
+        | This connection stores execution history and supplies the
+        | transaction boundary used by the runner. Null uses Laravel's
+        | default database connection.
+        |
+        */
+
+        'connection' => env('EVOLVER_DB_CONNECTION'),
     ],
 
     /*
     |--------------------------------------------------------------------------
-    | Transaction Mode
+    | Transactions
     |--------------------------------------------------------------------------
     |
-    | Choose whether actions run without package-managed transactions, inside
-    | one transaction per action, or inside one transaction for the entire run.
-    | Supported modes are "none", "per_action", and "entire_run".
+    | Actions may be wrapped in database transactions on the connection
+    | configured above so a failure does not leave partial changes behind.
     |
     */
 
     'transactions' => [
-        'mode' => TransactionMode::PerAction,
+
+        /*
+        |----------------------------------------------------------------------
+        | Transaction Mode
+        |----------------------------------------------------------------------
+        |
+        | This option controls how action execution is wrapped in database
+        | transactions.
+        |
+        | Supported: "none", "action", "batch"
+        |
+        | "none"   - Actions run without a package-managed transaction.
+        | "action" - Each action and its history write share a transaction.
+        | "batch"  - The entire plan and its history run in one transaction.
+        |
+        */
+
+        'mode' => env('EVOLVER_TRANSACTION_MODE', 'action'),
     ],
 
     /*
     |--------------------------------------------------------------------------
-    | Version Strategy
+    | Version Resolution
     |--------------------------------------------------------------------------
     |
-    | Exactly one strategy supplies the target application version. The "none"
-    | strategy disables version filtering, so every unexecuted action applies.
-    | Set "required" to false to tolerate an unresolved non-none strategy.
+    | Application versions control optional action windows. API versions are
+    | resolved independently from the URL or the configured request header.
     |
     */
 
     'versioning' => [
 
         /*
-        |--------------------------------------------------------------------------
-        | Selected Strategy
-        |--------------------------------------------------------------------------
+        |----------------------------------------------------------------------
+        | Application Version
+        |----------------------------------------------------------------------
         |
-        | Select exactly one VersionStrategy. The None strategy resolves no target
-        | version and makes every unexecuted action applicable in filename order.
-        |
-        */
-
-        'strategy' => VersionStrategy::None,
-
-        /*
-        | Require a Resolved Version
-        |--------------------------------------------------------------------------
-        |
-        | When enabled, an unresolved File, Config, Json, or Git strategy causes
-        | planning to fail. This option has no effect on the None strategy.
+        | The resolved application version is compared against each action's
+        | "introducedIn" (inclusive) and "expiresAt" (exclusive) window.
+        | Actions without a window always run. When no version can be
+        | resolved, actions declaring a window are skipped.
         |
         */
 
-        'required' => true,
+        'application' => [
 
-        /*
-        |--------------------------------------------------------------------------
-        | File Strategy
-        |--------------------------------------------------------------------------
-        |
-        | Read the target version from a plain-text file. The file should contain
-        | one semantic version value, such as "1.4.2" or "v1.4.2".
-        |
-        */
+            /*
+            |------------------------------------------------------------------
+            | Application Version Resolver
+            |------------------------------------------------------------------
+            |
+            | The resolver used to determine the current application version.
+            | You may also provide the class name of a custom implementation
+            | of the ApplicationVersionResolver contract, which is resolved
+            | from the container.
+            |
+            | Supported: "none", "file", "config", "json", "git"
+            |
+            */
 
-        'file' => [
-            'path' => base_path('VERSION'),
+            'resolver' => env('EVOLVER_VERSION_RESOLVER', 'none'),
+
+            /*
+            |------------------------------------------------------------------
+            | Application Version Resolver Options
+            |------------------------------------------------------------------
+            |
+            | Driver-specific options for the built-in resolvers. Only the
+            | options of the selected resolver are read. The "none" resolver
+            | has no options and never resolves a version.
+            |
+            */
+
+            'resolvers' => [
+
+                /*
+                |--------------------------------------------------------------
+                | File Resolver
+                |--------------------------------------------------------------
+                |
+                | Reads the trimmed contents of the file at "path". A missing
+                | file is an error, while an empty file resolves no version.
+                |
+                */
+
+                'file' => [
+                    'path' => base_path('VERSION'),
+                ],
+
+                /*
+                |--------------------------------------------------------------
+                | Config Resolver
+                |--------------------------------------------------------------
+                |
+                | Reads the Laravel configuration value at the dotted "key".
+                | A null or empty value resolves no version.
+                |
+                */
+
+                'config' => [
+                    'key' => 'app.version',
+                ],
+
+                /*
+                |--------------------------------------------------------------
+                | JSON Resolver
+                |--------------------------------------------------------------
+                |
+                | Reads the dotted "key" from the JSON document at "path". A
+                | missing file, malformed JSON, or missing key is an error.
+                |
+                */
+
+                'json' => [
+                    'path' => base_path('composer.json'),
+                    'key' => 'version',
+                ],
+
+                /*
+                |--------------------------------------------------------------
+                | Git Resolver
+                |--------------------------------------------------------------
+                |
+                | Uses the latest tag reachable from HEAD in the application's
+                | repository. The first matching entry in "prefixes" is
+                | removed from the tag, so "v1.2.0" resolves to "1.2.0".
+                |
+                */
+
+                'git' => [
+                    'prefixes' => ['v', 'V'],
+                ],
+            ],
         ],
 
         /*
-        |--------------------------------------------------------------------------
-        | Config Strategy
-        |--------------------------------------------------------------------------
+        |----------------------------------------------------------------------
+        | API Version
+        |----------------------------------------------------------------------
         |
-        | Read the target version from the given dotted Laravel configuration key.
-        | The resolved configuration value must be a string.
-        |
-        */
-
-        'config' => [
-            'key' => 'app.version',
-        ],
-
-        /*
-        |--------------------------------------------------------------------------
-        | JSON Strategy
-        |--------------------------------------------------------------------------
-        |
-        | Read a JSON document and select its version using the configured dotted
-        | key. Invalid JSON causes version resolution to fail immediately.
+        | Incoming API requests are resolved to a version before routing so
+        | they reach the routes registered with Route::apiVersion(). The
+        | resolved version is validated against the supported versions.
         |
         */
 
-        'json' => [
-            'path' => base_path('composer.json'),
-            'key' => 'version',
+        'api' => [
+
+            /*
+            |------------------------------------------------------------------
+            | API Version Resolver
+            |------------------------------------------------------------------
+            |
+            | The strategy used to read the requested API version.
+            |
+            | Supported: "url", "header"
+            |
+            | "url"    - The version is the path segment after the base path,
+            |            such as "api/v1/users".
+            | "header" - The version is read from the configured header and
+            |            the request is internally routed to its versioned
+            |            path. Direct requests to versioned paths return 404.
+            |
+            */
+
+            'resolver' => env('EVOLVER_API_RESOLVER', 'url'),
+
+            /*
+            |------------------------------------------------------------------
+            | Supported API Versions
+            |------------------------------------------------------------------
+            |
+            | Requests for a version outside this list are rejected. An empty
+            | list accepts any well-formed version identifier.
+            |
+            */
+
+            'versions' => ['v1'],
+
+            /*
+            |------------------------------------------------------------------
+            | API Version Resolver Options
+            |------------------------------------------------------------------
+            |
+            | Driver-specific options for the API version resolvers.
+            |
+            */
+
+            'resolvers' => [
+
+                /*
+                |--------------------------------------------------------------
+                | URL Resolver
+                |--------------------------------------------------------------
+                |
+                | The "base_path" is the API route prefix. It is used by both
+                | strategies to identify API requests and to build the
+                | versioned route prefixes, such as "api/v1".
+                |
+                */
+
+                'url' => [
+                    'base_path' => 'api',
+                ],
+
+                /*
+                |--------------------------------------------------------------
+                | Header Resolver
+                |--------------------------------------------------------------
+                |
+                | The "name" of the request header holding the API version.
+                | Requests without this header receive a 400 response.
+                |
+                */
+
+                'header' => [
+                    'name' => 'X-API-Version',
+                ],
+            ],
         ],
-
-        /*
-        |--------------------------------------------------------------------------
-        | Git Strategy
-        |--------------------------------------------------------------------------
-        |
-        | Resolve the latest Git tag and remove the configured prefix when present.
-        | For example, a "v" prefix normalizes "v1.4.2" to "1.4.2".
-        |
-        */
-
-        'git' => [
-            'strip_prefix' => 'v',
-        ],
-
     ],
 
     /*
     |--------------------------------------------------------------------------
-    | Safety
+    | Execution Safety
     |--------------------------------------------------------------------------
     |
-    | When enabled, planning fails if a previously committed action file has a
-    | different checksum, preventing changed actions from passing unnoticed.
+    | Evolver stores a SHA-256 checksum of each action when it executes, so
+    | later edits to already executed actions can be detected.
     |
     */
 
     'safety' => [
+
+        /*
+        |----------------------------------------------------------------------
+        | Fail On Changed Action
+        |----------------------------------------------------------------------
+        |
+        | When enabled, deployment and rollback planning stop if the source
+        | of a previously executed action no longer matches its stored
+        | checksum. Disabling this allows changed actions to be ignored.
+        |
+        */
+
         'fail_on_changed_action' => true,
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | API Versioning
-    |--------------------------------------------------------------------------
-    |
-    | Opt in to URL-based major API versions such as /api/v1. Each configured
-    | route file is isolated behind version resolution and lifecycle handling.
-    | Deprecated versions emit standard lifecycle headers; sunset versions
-    | return HTTP 410 and are no longer dispatched.
-    |
-    */
-
-    'api' => [
-        /*
-        |--------------------------------------------------------------------------
-        | Enable API Versioning
-        |--------------------------------------------------------------------------
-        |
-        | When enabled, Evolver registers the configured versioned API routes and
-        | applies version resolution and lifecycle handling to incoming requests.
-        |
-        */
-
-        'enabled' => false,
-
-        /*
-        |--------------------------------------------------------------------------
-        | API Base Path
-        |--------------------------------------------------------------------------
-        |
-        | This path prefixes every configured API version. For example, the
-        | default value exposes version "v1" beneath the "/api/v1" URL path.
-        |
-        */
-
-        'base_path' => 'api',
-
-        'versions' => [
-            // 'v1' => [
-            //     'routes' => base_path('routes/api/v1.php'),
-            //     'middleware' => ['api'],
-            //     'deprecated_at' => null,
-            //     'sunset_at' => null,
-            //     'successor' => null,
-            //     'successor_url' => null,
-            // ],
-        ],
     ],
 ];
