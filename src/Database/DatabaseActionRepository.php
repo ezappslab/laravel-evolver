@@ -80,9 +80,9 @@ final class DatabaseActionRepository implements ActionRepository
     public function latestBatch(): ?string
     {
         $this->ensureAvailable();
-        $row = $this->connection->table(self::TABLE)->orderByDesc('id')->first();
+        $batch = $this->connection->table(self::TABLE)->orderByDesc('id')->value('batch_id');
 
-        return $row === null ? null : (string) $row->batch_id;
+        return $batch === null ? null : (string) $batch;
     }
 
     /**
