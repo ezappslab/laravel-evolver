@@ -32,7 +32,7 @@ final class ResolveApiVersion
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $base = trim((string) config('evolver.versioning.api.resolvers.url.base_path', 'api'), '/');
+        $base = $this->versions->apiBasePath();
         $path = trim($request->path(), '/');
         if ($path !== $base && ! str_starts_with($path, $base.'/')) {
             return $next($request);

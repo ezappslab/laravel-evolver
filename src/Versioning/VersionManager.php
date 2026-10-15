@@ -110,13 +110,22 @@ final class VersionManager
     public function apiResolver(): ApiVersionResolver
     {
         return match (config('evolver.versioning.api.resolver', 'url')) {
-            'url' => new UrlApiVersionResolver(
-                (string) config('evolver.versioning.api.resolvers.url.base_path', 'api'),
-            ),
+            'url' => new UrlApiVersionResolver($this->apiBasePath()),
             'header' => new HeaderApiVersionResolver(
                 (string) config('evolver.versioning.api.resolvers.header.name', 'X-API-Version'),
             ),
             default => throw new VersionResolutionException('Unknown API version resolver.'),
         };
+    }
+
+    /**
+     * Get the configured API route prefix without surrounding slashes.
+     *
+     * Shared by the route macro, the version middleware, and the URL resolver
+     * so every consumer agrees on which paths are API paths.
+     */
+    public function apiBasePath(): string
+    {
+        return trim((string) config('evolver.versioning.api.resolvers.url.base_path', 'api'), '/');
     }
 }

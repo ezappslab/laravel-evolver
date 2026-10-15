@@ -83,7 +83,7 @@ final class EvolverServiceProvider extends PackageServiceProvider
         Router::macro('apiVersion', function (string $version, \Closure|string $routes, array $middleware = ['api']): Router {
             /** @var Router $this */
             $group = $this->middleware($middleware)
-                ->prefix(trim((string) config('evolver.versioning.api.resolvers.url.base_path', 'api'), '/').'/'.$version);
+                ->prefix(app(VersionManager::class)->apiBasePath().'/'.$version);
 
             $group->group($routes);
 

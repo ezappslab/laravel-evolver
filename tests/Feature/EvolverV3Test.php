@@ -175,6 +175,15 @@ it('resolves application sources and custom classes', function (): void {
 it('extracts URL and header versions', function (): void {
     expect((new UrlApiVersionResolver)->resolve(Request::create('/api/v2/users')))->toBe('v2')->and((new HeaderApiVersionResolver)->resolve(Request::create('/api/users', 'GET', [], [], [], ['HTTP_X_API_VERSION' => 'v3'])))->toBe('v3');
 });
+it('shares one normalized API base path between routing and resolution', function (): void {
+    config()->set('evolver.versioning.api.resolvers.url.base_path', '/public-api/');
+    Route::apiVersion('v2', fn () => Route::get('ping', fn () => 'ok')->name('v2.ping'));
+    Route::getRoutes()->refreshNameLookups();
+    $versions = app(VersionManager::class);
+    expect($versions->apiBasePath())->toBe('public-api')
+        ->and(Route::getRoutes()->getByName('v2.ping')?->uri())->toBe('public-api/v2/ping')
+        ->and($versions->api(Request::create('/public-api/v2/ping')))->toBe('v2');
+});
 it('rewrites only managed header-versioned paths before matching', function (): void {
     config()->set('evolver.versioning.api.resolver', 'header');
     config()->set('evolver.versioning.api.versions', ['v1', 'v2']);
