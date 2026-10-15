@@ -16,8 +16,16 @@ final class DeploymentManager
 {
     /**
      * Create a new deployment manager instance.
+     *
+     *
+     * @throws \InvalidArgumentException
      */
-    public function __construct(private readonly Planner $planner, private readonly Runner $runner, private readonly LockProvider $locks, private readonly int $lockSeconds = 300) {}
+    public function __construct(private readonly Planner $planner, private readonly Runner $runner, private readonly LockProvider $locks, private readonly int $lockSeconds = 300)
+    {
+        if ($lockSeconds < 1) {
+            throw new \InvalidArgumentException('The Evolver lock seconds must be a positive integer.');
+        }
+    }
 
     /**
      * Inspect all action states without mutating execution history.

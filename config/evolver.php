@@ -88,6 +88,33 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Deployment Lock
+    |--------------------------------------------------------------------------
+    |
+    | Deployments and rollbacks hold an atomic cache lock so only one Evolver
+    | operation runs at a time. The cache store must support atomic locks.
+    |
+    */
+
+    'lock' => [
+
+        /*
+        |----------------------------------------------------------------------
+        | Lock Seconds
+        |----------------------------------------------------------------------
+        |
+        | The lock expires after this many seconds so a crashed process cannot
+        | block deployments forever. Set it above your longest expected run,
+        | otherwise a second operation may start while the first is running.
+        | Must be a positive integer.
+        |
+        */
+
+        'seconds' => env('EVOLVER_LOCK_SECONDS', 300),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Version Resolution
     |--------------------------------------------------------------------------
     |

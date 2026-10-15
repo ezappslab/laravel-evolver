@@ -68,7 +68,7 @@ final class EvolverServiceProvider extends PackageServiceProvider
         $this->app->singleton(ActionDiscovery::class, fn ($app) => new ActionDiscovery($app['files'], (string) config('evolver.actions.path')));
         $this->app->singleton(Planner::class, fn ($app) => new Planner($app->make(ActionDiscovery::class), $app->make(ActionRepository::class), $app->make(VersionManager::class), (bool) config('evolver.safety.fail_on_changed_action', true)));
         $this->app->singleton(Runner::class, fn ($app) => new Runner($app->make(ActionRepository::class), $app->make(Connection::class), TransactionMode::configured(config('evolver.transactions.mode', 'action'))));
-        $this->app->singleton(DeploymentManager::class, fn ($app) => new DeploymentManager($app->make(Planner::class), $app->make(Runner::class), $app->make(LockProvider::class)));
+        $this->app->singleton(DeploymentManager::class, fn ($app) => new DeploymentManager($app->make(Planner::class), $app->make(Runner::class), $app->make(LockProvider::class), (int) config('evolver.lock.seconds', 300)));
         $this->app->singleton(EvolverManager::class);
     }
 

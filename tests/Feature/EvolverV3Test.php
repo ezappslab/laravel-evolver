@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+use Illuminate\Cache\ArrayStore;
 use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
@@ -150,6 +151,34 @@ it('resolves configured transaction modes', function (): void {
         ->and(TransactionMode::configured(TransactionMode::None))->toBe(TransactionMode::None);
     foreach (['nope', null, 1] as $invalid) {
         expect(fn () => TransactionMode::configured($invalid))->toThrow(InvalidArgumentException::class, 'Invalid Evolver transaction mode.');
+    }
+});
+it('uses the configured lock duration', function (): void {
+    $locks = new class implements LockProvider
+    {
+        public ?int $seconds = null;
+
+        public function lock($name, $seconds = 0, $owner = null)
+        {
+            $this->seconds = $seconds;
+
+            return (new ArrayStore)->lock($name, $seconds, $owner);
+        }
+
+        public function restoreLock($name, $owner)
+        {
+            return (new ArrayStore)->restoreLock($name, $owner);
+        }
+    };
+    app()->instance(LockProvider::class, $locks);
+    config()->set('evolver.lock.seconds', '900');
+    app()->forgetInstance(DeploymentManager::class);
+    app(DeploymentManager::class)->deploy();
+    expect($locks->seconds)->toBe(900);
+    foreach ([0, -5, 'abc'] as $invalid) {
+        config()->set('evolver.lock.seconds', $invalid);
+        app()->forgetInstance(DeploymentManager::class);
+        expect(fn () => app(DeploymentManager::class))->toThrow(InvalidArgumentException::class, 'The Evolver lock seconds must be a positive integer.');
     }
 });
 it('rejects concurrent deployment execution', function (): void {

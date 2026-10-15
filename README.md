@@ -26,6 +26,7 @@ Important keys in `config/evolver.php` are:
 | `actions.path` | `deploy/actions` |
 | `database.connection` | Laravel default |
 | `transactions.mode` | `action` |
+| `lock.seconds` | `300` |
 | `versioning.application.resolver` | `none` |
 | file/config/JSON sources | `VERSION`, `app.version`, `composer.json:version` |
 | `versioning.application.resolvers.git.prefixes` | `['v', 'V']` |
