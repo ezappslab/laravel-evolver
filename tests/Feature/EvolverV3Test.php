@@ -67,6 +67,18 @@ it('boots manager commands and route macro', function (): void {
     Route::getRoutes()->refreshNameLookups();
     expect(Route::getRoutes()->getByName('v1.health')?->uri())->toBe('api/v1/health');
 });
+it('creates actions only from safe names', function (string $name, int $exitCode, int $files): void {
+    $this->artisan('evolver:action', ['name' => $name])->assertExitCode($exitCode);
+    expect(glob($this->actions.'/*.php'))->toHaveCount($files)
+        ->and(glob(dirname($this->actions).'/*evil*.php'))->toBeEmpty();
+})->with([
+    ['Backfill Users', 0, 1],
+    ['backfill-product-slugs', 0, 1],
+    ['../evil', 1, 0],
+    ['nested/evil', 1, 0],
+    ['_evil', 1, 0],
+    ['', 1, 0],
+]);
 it('deploys once in filename order and rolls back in reverse order', function (): void {
     makeAction($this->actions, '2026_01_01_000002_second', "file_put_contents('{$this->actions}/log','2',FILE_APPEND);", "file_put_contents('{$this->actions}/log','b',FILE_APPEND);");
     makeAction($this->actions, '2026_01_01_000001_first', "file_put_contents('{$this->actions}/log','1',FILE_APPEND);", "file_put_contents('{$this->actions}/log','a',FILE_APPEND);");
