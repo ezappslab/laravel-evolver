@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Schema;
 use Infinity\Evolver\Contracts\ApplicationVersionResolver;
 use Infinity\Evolver\Database\DatabaseActionRepository;
 use Infinity\Evolver\Deployment\ActionDiscovery;
+use Infinity\Evolver\Deployment\ActionState;
 use Infinity\Evolver\Deployment\DeploymentManager;
 use Infinity\Evolver\Deployment\Direction;
 use Infinity\Evolver\Deployment\ExecutionPlan;
@@ -124,6 +125,34 @@ it('detects changed and missing historical actions', function (): void {
     expect(fn () => $manager->plan())->toThrow(ActionChangedException::class);
     unlink($path);
     expect(fn () => $manager->plan())->toThrow(InvalidActionException::class);
+});
+it('classifies every action state for status reporting', function (): void {
+    config()->set('app.version', '2.0.0');
+    config()->set('evolver.versioning.application.resolver', 'config');
+    $changed = makeAction($this->actions, '001_changed');
+    $missing = makeAction($this->actions, '002_missing');
+    makeAction($this->actions, '003_executed');
+    app(DeploymentManager::class)->deploy();
+    file_put_contents($changed, "\n// changed", FILE_APPEND);
+    unlink($missing);
+    makeAction($this->actions, '004_pending');
+    makeAction($this->actions, '005_future', '', '', '3.0.0');
+
+    $status = app(DeploymentManager::class)->status();
+    expect(array_map(fn (string $id) => $status->stateOf($id), ['001_changed', '002_missing', '003_executed', '004_pending', '005_future', 'unknown']))
+        ->toBe([ActionState::Changed, ActionState::Missing, ActionState::Executed, ActionState::Pending, ActionState::NotApplicable, null]);
+
+    $batch = $status->executed['003_executed']->batch;
+    $this->artisan('evolver:status')
+        ->expectsOutputToContain('Application version: 2.0.0')
+        ->expectsTable(['Action', 'Status', 'Batch'], [
+            ['001_changed', 'changed', $batch],
+            ['003_executed', 'executed', $batch],
+            ['004_pending', 'pending', '—'],
+            ['005_future', 'not applicable', '—'],
+            ['002_missing', 'missing', $batch],
+        ])
+        ->assertSuccessful();
 });
 it('never records failed operations', function (): void {
     makeAction($this->actions, '001_test', "throw new RuntimeException('failure');");
