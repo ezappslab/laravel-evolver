@@ -128,7 +128,7 @@ final class Planner
                 throw new InvalidActionException("Action [{$descriptor->id}] has invalid version [{$constraint}].");
             }
         }
-        if ($min !== null && $max !== null && version_compare(ltrim($min, 'vV'), ltrim($max, 'vV'), '>=')) {
+        if ($min !== null && $max !== null && self::compare($min, $max, '>=')) {
             throw new InvalidActionException("Action [{$descriptor->id}] has an empty version window.");
         }
         if ($min === null && $max === null) {
@@ -139,9 +139,15 @@ final class Planner
             return false;
         }
 
-        $v = ltrim($version, 'vV');
+        return ($min === null || self::compare($version, $min, '>='))
+            && ($max === null || self::compare($version, $max, '<'));
+    }
 
-        return ($min === null || version_compare($v, ltrim($min, 'vV'), '>='))
-            && ($max === null || version_compare($v, ltrim($max, 'vV'), '<'));
+    /**
+     * Compare two versions while ignoring an optional "v" prefix.
+     */
+    private static function compare(string $a, string $b, string $operator): bool
+    {
+        return version_compare(ltrim($a, 'vV'), ltrim($b, 'vV'), $operator);
     }
 }
