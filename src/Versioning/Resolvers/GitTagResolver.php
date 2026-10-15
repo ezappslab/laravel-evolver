@@ -23,12 +23,21 @@ final class GitTagResolver implements ApplicationVersionResolver
     /**
      * Resolve the application version from the latest tag reachable from HEAD.
      *
+     * Git itself locates the repository, so worktrees, submodules, and
+     * applications nested inside a larger repository are all supported.
+     *
      *
      * @throws VersionResolutionException
      */
     public function resolve(): ?string
     {
-        if (! is_dir($this->path.'/.git')) {
+        if (! is_dir($this->path)) {
+            throw new VersionResolutionException('Git metadata is unavailable.');
+        }
+
+        $repository = new Process(['git', 'rev-parse', '--is-inside-work-tree'], $this->path);
+        $repository->run();
+        if (! $repository->isSuccessful() || trim($repository->getOutput()) !== 'true') {
             throw new VersionResolutionException('Git metadata is unavailable.');
         }
 

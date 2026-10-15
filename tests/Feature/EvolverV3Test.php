@@ -5,6 +5,7 @@ use Illuminate\Cache\ArrayStore;
 use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Filesystem\Filesystem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
@@ -24,11 +25,14 @@ use Infinity\Evolver\Exceptions\ActionExecutionException;
 use Infinity\Evolver\Exceptions\InvalidActionException;
 use Infinity\Evolver\Exceptions\LockException;
 use Infinity\Evolver\Exceptions\RepositoryUnavailableException;
+use Infinity\Evolver\Exceptions\VersionResolutionException;
 use Infinity\Evolver\Routing\Resolvers\HeaderApiVersionResolver;
 use Infinity\Evolver\Routing\Resolvers\UrlApiVersionResolver;
 use Infinity\Evolver\Versioning\Resolvers\FileResolver;
+use Infinity\Evolver\Versioning\Resolvers\GitTagResolver;
 use Infinity\Evolver\Versioning\Resolvers\JsonResolver;
 use Infinity\Evolver\Versioning\VersionManager;
+use Symfony\Component\Process\Process;
 
 beforeEach(function (): void {
     Schema::dropIfExists('evolutions');
@@ -208,6 +212,30 @@ it('resolves application sources and custom classes', function (): void {
     app()->instance($custom::class, $custom);
     config()->set('evolver.versioning.application.resolver', $custom::class);
     expect(app(VersionManager::class)->application())->toBe('9.8.7');
+});
+it('resolves Git tags from worktrees and nested application paths', function (): void {
+    $root = sys_get_temp_dir().'/evolver-git-'.bin2hex(random_bytes(5));
+    $git = function (string $cwd, string ...$args): void {
+        $process = new Process(['git', '-c', 'user.email=test@example.com', '-c', 'user.name=Test', ...$args], $cwd);
+        $process->mustRun();
+    };
+    mkdir($root.'/repo/backend', 0777, true);
+    $git($root.'/repo', 'init', '-q');
+    $git($root.'/repo', 'commit', '-q', '--allow-empty', '-m', 'init');
+    $git($root.'/repo', 'tag', 'v1.4.0');
+    $git($root.'/repo', 'worktree', 'add', '-q', $root.'/worktree');
+    mkdir($root.'/plain');
+
+    try {
+        expect($root.'/worktree/.git')->toBeFile()
+            ->and((new GitTagResolver($root.'/repo'))->resolve())->toBe('1.4.0')
+            ->and((new GitTagResolver($root.'/worktree'))->resolve())->toBe('1.4.0')
+            ->and((new GitTagResolver($root.'/repo/backend'))->resolve())->toBe('1.4.0')
+            ->and(fn () => (new GitTagResolver($root.'/plain'))->resolve())->toThrow(VersionResolutionException::class, 'Git metadata is unavailable.')
+            ->and(fn () => (new GitTagResolver($root.'/missing'))->resolve())->toThrow(VersionResolutionException::class, 'Git metadata is unavailable.');
+    } finally {
+        (new Filesystem)->deleteDirectory($root);
+    }
 });
 it('extracts URL and header versions', function (): void {
     expect((new UrlApiVersionResolver)->resolve(Request::create('/api/v2/users')))->toBe('v2')->and((new HeaderApiVersionResolver)->resolve(Request::create('/api/users', 'GET', [], [], [], ['HTTP_X_API_VERSION' => 'v3'])))->toBe('v3');
