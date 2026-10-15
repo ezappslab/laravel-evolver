@@ -96,6 +96,21 @@ it('deploys once in filename order and rolls back in reverse order', function ()
     $manager->rollback();
     expect(file_get_contents($this->actions.'/log'))->toBe('12ba')->and(Schema::getConnection()->table('evolutions')->count())->toBe(0);
 });
+it('rolls back an older batch from only its own records and files', function (): void {
+    makeAction($this->actions, '001_first');
+    $first = app(DeploymentManager::class)->deploy();
+    makeAction($this->actions, '002_second');
+    $second = app(DeploymentManager::class)->deploy();
+
+    expect(array_keys(app(DatabaseActionRepository::class)->forBatch($first->batch)))->toBe(['001_first'])
+        ->and(app(DatabaseActionRepository::class)->forBatch('unknown'))->toBeEmpty()
+        ->and(array_map(fn ($a) => $a->id, app(ActionDiscovery::class)->discover(['002_second'])))->toBe(['002_second'])
+        ->and(app(ActionDiscovery::class)->discover([]))->toBeEmpty()
+        ->and(app(DeploymentManager::class)->rollback($first->batch)->completed)->toBe(['001_first'])
+        ->and(array_keys(app(DatabaseActionRepository::class)->all()))->toBe(['002_second'])
+        ->and(app(DeploymentManager::class)->rollback($first->batch)->completed)->toBeEmpty()
+        ->and($second->completed)->toBe(['002_second']);
+});
 it('rolls back without resolving the application version', function (): void {
     makeAction($this->actions, '2026_01_01_000001_first', '', "file_put_contents('{$this->actions}/log','a');");
     $manager = app(DeploymentManager::class);

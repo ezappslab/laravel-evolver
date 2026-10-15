@@ -87,17 +87,14 @@ final class Planner
         if ($batch === null) {
             return new ExecutionPlan(Direction::Down, [], '');
         }
+        $records = $this->repository->forBatch($batch);
         $found = [];
-        foreach ($this->discovery->discover() as $a) {
+        foreach ($this->discovery->discover(array_keys($records)) as $a) {
             $found[$a->id] = $a;
         }
 
         $actions = [];
-        foreach ($this->repository->all() as $record) {
-            if ($record->batch !== $batch) {
-                continue;
-            }
-
+        foreach ($records as $record) {
             $descriptor = $found[$record->id] ?? throw new InvalidActionException("Executed action [{$record->id}] is missing; rollback cannot continue.");
             if ($this->failOnChangedAction && ! hash_equals($record->checksum, $descriptor->checksum)) {
                 throw new ActionChangedException("Executed action [{$record->id}] changed; rollback cannot continue.");

@@ -55,12 +55,22 @@ final class DatabaseActionRepository implements ActionRepository
     public function all(): array
     {
         $this->ensureAvailable();
-        $records = [];
-        foreach ($this->connection->table(self::TABLE)->orderBy('id')->get() as $row) {
-            $records[(string) $row->action_id] = new ExecutionRecord((string) $row->action_id, (string) $row->checksum, (string) $row->batch_id, new DateTimeImmutable((string) $row->ran_at), (int) $row->duration_ms, isset($row->target_version) ? (string) $row->target_version : null);
-        }
 
-        return $records;
+        return $this->records($this->connection->table(self::TABLE)->orderBy('id')->get());
+    }
+
+    /**
+     * Get the active records of one batch in execution order, keyed by action identifier.
+     *
+     * @return array<string, ExecutionRecord>
+     *
+     * @throws RepositoryUnavailableException
+     */
+    public function forBatch(string $batch): array
+    {
+        $this->ensureAvailable();
+
+        return $this->records($this->connection->table(self::TABLE)->where('batch_id', $batch)->orderBy('id')->get());
     }
 
     /**
@@ -109,5 +119,21 @@ final class DatabaseActionRepository implements ActionRepository
     {
         $this->ensureAvailable();
         $this->connection->table(self::TABLE)->where('action_id', $id)->delete();
+    }
+
+    /**
+     * Map history rows to execution records keyed by action identifier.
+     *
+     * @param  iterable<object>  $rows
+     * @return array<string, ExecutionRecord>
+     */
+    private function records(iterable $rows): array
+    {
+        $records = [];
+        foreach ($rows as $row) {
+            $records[(string) $row->action_id] = new ExecutionRecord((string) $row->action_id, (string) $row->checksum, (string) $row->batch_id, new DateTimeImmutable((string) $row->ran_at), (int) $row->duration_ms, isset($row->target_version) ? (string) $row->target_version : null);
+        }
+
+        return $records;
     }
 }

@@ -20,6 +20,15 @@ interface ActionRepository
     public function all(): array;
 
     /**
+     * Get the active records of one batch in execution order, keyed by action identity.
+     *
+     * @return array<string, ExecutionRecord>
+     *
+     * @throws RepositoryUnavailableException
+     */
+    public function forBatch(string $batch): array;
+
+    /**
      * Generate an identifier shared by every action in the next deployment.
      */
     public function nextBatch(): string;

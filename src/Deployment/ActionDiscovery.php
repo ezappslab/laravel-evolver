@@ -21,18 +21,22 @@ final class ActionDiscovery
      * Files are hashed here but loaded only when their action is first used.
      * Case-insensitive identity comparison prevents deployments from changing
      * behavior when moved between case-sensitive and insensitive filesystems.
+     * When identifiers are given, every file is still checked for duplicate
+     * identities but only the matching files are hashed and described.
      *
+     * @param  list<string>|null  $only
      * @return list<ActionDescriptor>
      *
      * @throws InvalidActionException
      */
-    public function discover(): array
+    public function discover(?array $only = null): array
     {
         if (! $this->files->isDirectory($this->path)) {
             return [];
         }
         $result = [];
         $identities = [];
+        $wanted = $only === null ? null : array_fill_keys($only, true);
         foreach ($this->files->files($this->path) as $file) {
             if ($file->getExtension() !== 'php') {
                 continue;
@@ -43,6 +47,9 @@ final class ActionDiscovery
                 throw new InvalidActionException("Duplicate action identity [{$id}].");
             }
             $identities[$normalized] = true;
+            if ($wanted !== null && ! isset($wanted[$id])) {
+                continue;
+            }
             $path = $file->getRealPath();
             $result[] = new ActionDescriptor($id, $path, hash_file('sha256', $path), fn (): Action => $this->load($id, $path));
         }
