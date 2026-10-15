@@ -22,10 +22,8 @@ enum TransactionMode: string
         if ($value instanceof self) {
             return $value;
         }
-        if (! is_string($value) || self::tryFrom($value) === null) {
-            throw new \InvalidArgumentException('Invalid Evolver transaction mode.');
-        }
 
-        return self::from($value);
+        return (is_string($value) ? self::tryFrom($value) : null)
+            ?? throw new \InvalidArgumentException('Invalid Evolver transaction mode.');
     }
 }

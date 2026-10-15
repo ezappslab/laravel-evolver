@@ -16,6 +16,7 @@ use Infinity\Evolver\Deployment\Direction;
 use Infinity\Evolver\Deployment\ExecutionPlan;
 use Infinity\Evolver\Deployment\Planner;
 use Infinity\Evolver\Deployment\Runner;
+use Infinity\Evolver\Deployment\TransactionMode;
 use Infinity\Evolver\EvolverManager;
 use Infinity\Evolver\Exceptions\ActionChangedException;
 use Infinity\Evolver\Exceptions\ActionExecutionException;
@@ -143,6 +144,13 @@ it('caches only a confirmed history table', function (): void {
     $repository->ensureAvailable();
     Schema::drop('evolutions');
     expect(fn () => $repository->latestBatch())->toThrow(QueryException::class);
+});
+it('resolves configured transaction modes', function (): void {
+    expect(TransactionMode::configured('batch'))->toBe(TransactionMode::Batch)
+        ->and(TransactionMode::configured(TransactionMode::None))->toBe(TransactionMode::None);
+    foreach (['nope', null, 1] as $invalid) {
+        expect(fn () => TransactionMode::configured($invalid))->toThrow(InvalidArgumentException::class, 'Invalid Evolver transaction mode.');
+    }
 });
 it('rejects concurrent deployment execution', function (): void {
     $lock = app(LockProvider::class)->lock('evolver:deployment', 30);
