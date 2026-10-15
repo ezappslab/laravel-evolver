@@ -237,6 +237,20 @@ it('resolves Git tags from worktrees and nested application paths', function ():
         (new Filesystem)->deleteDirectory($root);
     }
 });
+it('validates application versions with one shared format', function (string $version, bool $valid): void {
+    expect(VersionManager::isValid($version))->toBe($valid);
+})->with([
+    ['1', true],
+    ['1.2.3', true],
+    ['v1.2.3.4', true],
+    ['2.0.0-rc.1', true],
+    ['2.0.0+build.5', true],
+    ['', false],
+    ['1.2.3.4.5', false],
+    ['vv1.0', false],
+    ['latest', false],
+    ['1.0 ', false],
+]);
 it('extracts URL and header versions', function (): void {
     expect((new UrlApiVersionResolver)->resolve(Request::create('/api/v2/users')))->toBe('v2')->and((new HeaderApiVersionResolver)->resolve(Request::create('/api/users', 'GET', [], [], [], ['HTTP_X_API_VERSION' => 'v3'])))->toBe('v3');
 });

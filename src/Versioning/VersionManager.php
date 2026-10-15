@@ -22,9 +22,24 @@ use Infinity\Evolver\Versioning\Resolvers\NoneResolver;
 final class VersionManager
 {
     /**
+     * Accepted application version format, such as "1.2", "v1.2.3", or "2.0.0-rc.1".
+     */
+    private const VERSION_PATTERN = '/^v?\d+(?:\.\d+){0,3}(?:[-+][0-9A-Za-z.-]+)?$/';
+
+    /**
      * Create a new version manager instance.
      */
     public function __construct(private readonly Container $container) {}
+
+    /**
+     * Determine whether the value is a well-formed application version.
+     *
+     * Shared by resolved application versions and action version windows.
+     */
+    public static function isValid(string $version): bool
+    {
+        return Str::isMatch(self::VERSION_PATTERN, $version);
+    }
 
     /**
      * Resolve and validate the application's declared version.
@@ -36,7 +51,7 @@ final class VersionManager
     {
         $version = $this->applicationResolver()->resolve();
 
-        if ($version !== null && ! Str::isMatch('/^v?\d+(?:\.\d+){0,3}(?:[-+][0-9A-Za-z.-]+)?$/', $version)) {
+        if ($version !== null && ! self::isValid($version)) {
             throw new VersionResolutionException('The resolved application version is invalid.');
         }
 
