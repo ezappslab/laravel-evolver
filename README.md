@@ -135,10 +135,13 @@ The v3 repository and migration deliberately retain the existing `evolutions` co
 ```bash
 composer test
 composer lint
+composer format
 composer validate --no-check-publish
 ```
 
-The suite uses Pest and Orchestra Testbench; linting runs Pint, PHPStan, and Rector.
+The suite uses Pest and Orchestra Testbench. `composer lint` checks formatting,
+static analysis, and Rector without modifying files; `composer format` applies
+Pint formatting fixes.
 
 ## License
 

@@ -185,7 +185,7 @@ it('loads only the action files a plan needs', function (): void {
     $GLOBALS['evolver_broken'] = true;
     expect(app(DeploymentManager::class)->status()->stateOf('001_old'))->toBe(ActionState::Executed)
         ->and(app(DeploymentManager::class)->plan()->isEmpty())->toBeTrue()
-        ->and($GLOBALS['evolver_loads'])->toBe([])
+        ->and($GLOBALS['evolver_loads'])->toBeEmpty()
         ->and(fn () => app(DeploymentManager::class)->rollbackPlan())->toThrow(InvalidActionException::class, 'Unable to load action [002_new].');
 
     $GLOBALS['evolver_loads'] = [];
