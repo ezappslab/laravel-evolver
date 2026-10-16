@@ -53,7 +53,7 @@ final class EvolverServiceProvider extends PackageServiceProvider
      */
     public function packageRegistered(): void
     {
-        $this->app->singleton(ApiVersionContext::class);
+        $this->app->scoped(ApiVersionContext::class);
         $this->app->singleton(VersionManager::class);
         $this->app->singleton(Connection::class, fn ($app) => $app['db']->connection(config('evolver.database.connection')));
         $this->app->singleton(LockProvider::class, function ($app): LockProvider {

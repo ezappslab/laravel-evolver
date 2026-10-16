@@ -27,6 +27,7 @@ use Infinity\Evolver\Exceptions\InvalidActionException;
 use Infinity\Evolver\Exceptions\LockException;
 use Infinity\Evolver\Exceptions\RepositoryUnavailableException;
 use Infinity\Evolver\Exceptions\VersionResolutionException;
+use Infinity\Evolver\Routing\ApiVersionContext;
 use Infinity\Evolver\Routing\ResolveApiVersion;
 use Infinity\Evolver\Routing\Resolvers\HeaderApiVersionResolver;
 use Infinity\Evolver\Routing\Resolvers\UrlApiVersionResolver;
@@ -351,6 +352,21 @@ it('rewrites only managed header-versioned paths before matching', function (): 
     $this->withHeader('X-API-Version', 'v2')->get('/api/users/42?ok=1')->assertOk()->assertSee('42|/api/users/42?ok=1');
     $this->get('/ordinary')->assertOk()->assertSee('ordinary');
     $this->withHeader('X-API-Version', 'v2')->get('/api/v2/users/42')->assertNotFound();
+});
+it('scopes and resets the API version context between requests', function (): void {
+    $context = app(ApiVersionContext::class);
+    $context->set('v2');
+
+    app()->forgetScopedInstances();
+
+    $nextContext = app(ApiVersionContext::class);
+    expect($nextContext)->not->toBe($context)
+        ->and($nextContext->get())->toBeNull();
+
+    $nextContext->set('v2');
+    app(ResolveApiVersion::class)->handle(Request::create('/ordinary'), fn () => response(''));
+
+    expect($nextContext->get())->toBeNull();
 });
 it('rewrites header-versioned requests without buffering the body', function (): void {
     config()->set('evolver.versioning.api.resolver', 'header');

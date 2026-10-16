@@ -41,6 +41,8 @@ final class ResolveApiVersion
      */
     public function handle(Request $request, Closure $next): Response
     {
+        $this->context->set(null);
+
         $base = $this->versions->apiBasePath();
         $path = trim($request->path(), '/');
         if ($path !== $base && ! str_starts_with($path, $base.'/')) {
