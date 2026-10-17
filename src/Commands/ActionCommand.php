@@ -26,13 +26,21 @@ final class ActionCommand extends Command
     protected $description = 'Create a timestamped Evolver action';
 
     /**
+     * Create a new action command instance.
+     */
+    public function __construct(private readonly Filesystem $files)
+    {
+        parent::__construct();
+    }
+
+    /**
      * Execute the console command.
      *
      * Creates the configured actions directory when needed and writes a new
      * timestamped action file from the package stub. Names are restricted to
      * a safe character set so they cannot escape the actions directory.
      */
-    public function handle(Filesystem $files): int
+    public function handle(): int
     {
         $name = (string) $this->argument('name');
         if (! Str::isMatch('/^[A-Za-z0-9][A-Za-z0-9 _-]*$/', $name)) {
@@ -42,15 +50,15 @@ final class ActionCommand extends Command
         }
 
         $path = (string) config('evolver.actions.path');
-        $files->ensureDirectoryExists($path);
+        $this->files->ensureDirectoryExists($path);
         $file = $path.'/'.now()->format('Y_m_d_His').'_'.Str::snake($name).'.php';
-        if ($files->exists($file)) {
+        if ($this->files->exists($file)) {
             $this->components->error('An action with this timestamp and name already exists.');
 
             return self::FAILURE;
         }
 
-        $files->put($file, $files->get(dirname(__DIR__, 2).'/resources/stubs/action.stub'));
+        $this->files->put($file, $this->files->get(dirname(__DIR__, 2).'/resources/stubs/action.stub'));
         $this->components->info("Created action: {$file}");
 
         return self::SUCCESS;

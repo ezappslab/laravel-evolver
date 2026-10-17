@@ -6,6 +6,7 @@ namespace Infinity\Evolver\Versioning;
 
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Http\Request;
+use Illuminate\Process\Factory;
 use Illuminate\Support\Str;
 use Infinity\Evolver\Contracts\ApiVersionResolver;
 use Infinity\Evolver\Contracts\ApplicationVersionResolver;
@@ -24,7 +25,7 @@ final class VersionManager
     /**
      * Accepted application version format, such as "1.2", "v1.2.3", or "2.0.0-rc.1".
      */
-    private const VERSION_PATTERN = '/^v?\d+(?:\.\d+){0,3}(?:[-+][0-9A-Za-z.-]+)?$/';
+    private const string VERSION_PATTERN = '/^v?\d+(?:\.\d+){0,3}(?:[-+][0-9A-Za-z.-]+)?$/';
 
     /**
      * Create a new version manager instance.
@@ -108,6 +109,8 @@ final class VersionManager
                 (string) config('evolver.versioning.application.resolvers.json.key', 'version'),
             ),
             'git' => new GitTagResolver(
+                $this->container->make('files'),
+                $this->container->make(Factory::class),
                 base_path(),
                 (array) config('evolver.versioning.application.resolvers.git.prefixes', ['v', 'V']),
             ),

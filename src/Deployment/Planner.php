@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infinity\Evolver\Deployment;
 
 use Infinity\Evolver\Contracts\ActionRepository;
+use Infinity\Evolver\Contracts\ActionSource;
 use Infinity\Evolver\Exceptions\ActionChangedException;
 use Infinity\Evolver\Exceptions\InvalidActionException;
 use Infinity\Evolver\Exceptions\VersionResolutionException;
@@ -16,7 +17,7 @@ final class Planner
     /**
      * Create a new planner instance.
      */
-    public function __construct(private readonly ActionDiscovery $discovery, private readonly ActionRepository $repository, private readonly VersionManager $versions, private readonly bool $failOnChangedAction) {}
+    public function __construct(private readonly ActionSource $source, private readonly ActionRepository $repository, private readonly VersionManager $versions, private readonly bool $failOnChangedAction) {}
 
     /**
      * Classify every discovered and historical action without writing state.
@@ -27,7 +28,7 @@ final class Planner
      */
     public function status(): DeploymentStatus
     {
-        $discovered = $this->discovery->discover();
+        $discovered = $this->source->discover();
         $executed = $this->repository->all();
         $version = $this->versions->application();
         $pending = [];
@@ -89,7 +90,7 @@ final class Planner
         }
         $records = $this->repository->forBatch($batch);
         $found = [];
-        foreach ($this->discovery->discover(array_keys($records)) as $a) {
+        foreach ($this->source->discover(array_keys($records)) as $a) {
             $found[$a->id] = $a;
         }
 
@@ -120,8 +121,9 @@ final class Planner
      */
     private function applies(ActionDescriptor $descriptor, ?string $version): bool
     {
-        $min = $descriptor->action()->introducedIn();
-        $max = $descriptor->action()->expiresAt();
+        $action = $descriptor->action();
+        $min = $action->introducedIn();
+        $max = $action->expiresAt();
         foreach ([$min, $max] as $constraint) {
             if ($constraint !== null && ! VersionManager::isValid($constraint)) {
                 throw new InvalidActionException("Action [{$descriptor->id}] has invalid version [{$constraint}].");

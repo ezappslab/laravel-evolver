@@ -19,9 +19,11 @@ final class ActionDescriptor
     /**
      * Create a new action descriptor instance.
      *
+     * The path is owned by the action source; in-memory actions have none.
+     *
      * @param  Action|\Closure(): Action  $action
      */
-    public function __construct(public readonly string $id, public readonly string $path, public readonly string $checksum, Action|\Closure $action)
+    public function __construct(public readonly string $id, public readonly ?string $path, public readonly string $checksum, Action|\Closure $action)
     {
         $this->action = $action;
     }

@@ -28,12 +28,12 @@
         "illuminate/database": "^12.0 || ^13.0",
         "illuminate/filesystem": "^12.0 || ^13.0",
         "illuminate/http": "^12.0 || ^13.0",
+        "illuminate/process": "^12.0 || ^13.0",
         "illuminate/routing": "^12.0 || ^13.0",
         "illuminate/support": "^12.0 || ^13.0",
         "spatie/laravel-package-tools": "^1.93",
         "symfony/http-foundation": "^7.2 || ^8.0",
-        "symfony/http-kernel": "^7.2 || ^8.0",
-        "symfony/process": "^7.2 || ^8.0"
+        "symfony/http-kernel": "^7.2 || ^8.0"
     },
     "require-dev": {
         "orchestra/testbench": "^10.9 || ^11.0",

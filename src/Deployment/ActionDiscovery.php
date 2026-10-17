@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace Infinity\Evolver\Deployment;
 
 use Illuminate\Filesystem\Filesystem;
+use Infinity\Evolver\Contracts\ActionSource;
 use Infinity\Evolver\Exceptions\InvalidActionException;
 
 /** Locates and fingerprints action files, loading them only on demand and never invoking their deployment methods. */
-final class ActionDiscovery
+final class ActionDiscovery implements ActionSource
 {
     /**
      * Create a new action discovery instance.
@@ -50,12 +51,43 @@ final class ActionDiscovery
             if ($wanted !== null && ! isset($wanted[$id])) {
                 continue;
             }
-            $path = $file->getRealPath();
-            $result[] = new ActionDescriptor($id, $path, hash_file('sha256', $path), fn (): Action => $this->load($id, $path));
+            $path = $file->getPathname();
+            $result[] = new ActionDescriptor($id, $path, $this->hash($id, $path), fn (): Action => $this->load($id, $path));
         }
         usort($result, static fn (ActionDescriptor $a, ActionDescriptor $b): int => $a->id <=> $b->id);
 
         return $result;
+    }
+
+    /**
+     * Re-hash the action's file, used to detect edits made after planning.
+     *
+     *
+     * @throws InvalidActionException
+     */
+    public function checksum(ActionDescriptor $action): string
+    {
+        return $this->hash($action->id, $action->path ?? throw new InvalidActionException("Action [{$action->id}] has no source file."));
+    }
+
+    /**
+     * Compute the SHA-256 checksum of the given action file.
+     *
+     * Broken links, deleted files, and unreadable files are all reported as
+     * invalid actions instead of surfacing as raw filesystem warnings.
+     *
+     *
+     * @throws InvalidActionException
+     */
+    private function hash(string $id, string $path): string
+    {
+        try {
+            $checksum = $this->files->hash($path, 'sha256');
+        } catch (\Throwable $e) {
+            throw new InvalidActionException("Unable to read action [{$id}].", 0, $e);
+        }
+
+        return is_string($checksum) ? $checksum : throw new InvalidActionException("Unable to read action [{$id}].");
     }
 
     /**

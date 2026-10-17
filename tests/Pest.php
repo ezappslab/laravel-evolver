@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Infinity\Evolver\Contracts\ActionRepository;
+use Tests\Support\ActionLog;
 use Tests\TestCase;
 
 /*
@@ -16,7 +18,12 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
+    ->beforeEach(fn () => ActionLog::reset())
     ->in('Feature');
+
+pest()->extend(TestCase::class)
+    ->beforeEach(fn () => ActionLog::reset())
+    ->in('Unit');
 
 /*
 |--------------------------------------------------------------------------
@@ -44,7 +51,29 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/**
+ * Get the path of a read-only action fixture scenario.
+ */
+function fixtures(string $scenario): string
 {
-    // ..
+    return __DIR__.'/Fixtures/actions/'.$scenario;
+}
+
+/**
+ * Point action discovery at a read-only fixture scenario.
+ */
+function useFixtures(string $scenario): string
+{
+    $path = fixtures($scenario);
+    config()->set('evolver.actions.path', $path);
+
+    return $path;
+}
+
+/**
+ * Insert a history row, as if the action had been deployed.
+ */
+function recordHistory(string $id, string $checksum, string $batch = '00000000-0000-0000-0000-000000000001'): void
+{
+    app(ActionRepository::class)->record($id, $checksum, $batch, 0, null);
 }

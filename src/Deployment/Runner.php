@@ -6,8 +6,10 @@ namespace Infinity\Evolver\Deployment;
 
 use Illuminate\Database\Connection;
 use Infinity\Evolver\Contracts\ActionRepository;
+use Infinity\Evolver\Contracts\ActionSource;
 use Infinity\Evolver\Exceptions\ActionChangedException;
 use Infinity\Evolver\Exceptions\ActionExecutionException;
+use Infinity\Evolver\Exceptions\InvalidActionException;
 
 /** Executes a supplied plan and keeps history writes in its transaction boundary. */
 final class Runner
@@ -15,7 +17,7 @@ final class Runner
     /**
      * Create a new runner instance.
      */
-    public function __construct(private readonly ActionRepository $repository, private readonly Connection $connection, private readonly TransactionMode $mode) {}
+    public function __construct(private readonly ActionRepository $repository, private readonly ActionSource $source, private readonly Connection $connection, private readonly TransactionMode $mode) {}
 
     /**
      * Execute the plan according to its direction and configured transaction mode.
@@ -95,10 +97,11 @@ final class Runner
      *
      *
      * @throws ActionChangedException
+     * @throws InvalidActionException
      */
     private function execute(PlannedAction $action, ExecutionPlan $plan): void
     {
-        $checksum = hash_file('sha256', $action->descriptor->path);
+        $checksum = $this->source->checksum($action->descriptor);
         if (! hash_equals($action->descriptor->checksum, $checksum)) {
             throw new ActionChangedException("Action [{$action->descriptor->id}] changed after planning.");
         }

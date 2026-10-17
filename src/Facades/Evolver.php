@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Infinity\Evolver\Facades;
 
+use Illuminate\Container\Container;
 use Illuminate\Support\Facades\Facade;
+use Infinity\Evolver\Deployment\Action;
 use Infinity\Evolver\EvolverManager;
+use Infinity\Evolver\Exceptions\InvalidActionException;
+use Infinity\Evolver\Testing\EvolverFake;
 
 /**
  * Laravel facade for Evolver's lightweight public manager.
@@ -15,6 +19,18 @@ use Infinity\Evolver\EvolverManager;
  */
 final class Evolver extends Facade
 {
+    /**
+     * Replace the action source with in-memory actions keyed by identifier.
+     *
+     * @param  array<string, Action>  $actions
+     *
+     * @throws InvalidActionException
+     */
+    public static function fake(array $actions = []): EvolverFake
+    {
+        return EvolverFake::install(Container::getInstance(), $actions);
+    }
+
     /**
      * Get the registered name of the component.
      */
