@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 use Illuminate\Cache\ArrayStore;
 use Illuminate\Contracts\Cache\LockProvider;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Infinity\Evolver\Deployment\Action;
 use Infinity\Evolver\Deployment\DeploymentManager;
 use Infinity\Evolver\Deployment\Runner;
+use Infinity\Evolver\EvolverServiceProvider;
 use Infinity\Evolver\Exceptions\ActionChangedException;
 use Infinity\Evolver\Exceptions\ActionExecutionException;
 use Infinity\Evolver\Exceptions\InvalidActionException;
@@ -16,12 +18,22 @@ use Infinity\Evolver\Facades\Evolver;
 use Tests\Support\ActionLog;
 use Tests\Support\RecordedAction;
 
-it('uses the Laravel cache store without binding the lock provider contract', function (): void {
+it('uses the Laravel default cache store for deployment locks', function (): void {
     $store = app('cache.store')->getStore();
 
     expect($store)->toBeInstanceOf(LockProvider::class)
-        ->and(app('evolver.lock.provider'))->toBe($store)
-        ->and(app()->bound(LockProvider::class))->toBeFalse();
+        ->and(app(EvolverServiceProvider::LOCK_PROVIDER))->toBe($store);
+});
+
+it('uses a named cache store through Laravel cache manager', function (): void {
+    config()->set('cache.stores.evolver_testing', ['driver' => 'array']);
+    config()->set('evolver.lock.store', 'evolver_testing');
+
+    $store = Cache::store('evolver_testing')->getStore();
+
+    expect($store)->toBeInstanceOf(LockProvider::class)
+        ->and(app(EvolverServiceProvider::LOCK_PROVIDER))->toBe($store)
+        ->and($store)->not->toBe(app('cache.store')->getStore());
 });
 
 it('reports committed actions and history per transaction mode', function (string $mode, array $completed): void {
@@ -96,7 +108,7 @@ it('uses the configured lock duration', function (): void {
             return (new ArrayStore)->restoreLock($name, $owner);
         }
     };
-    app()->instance('evolver.lock.provider', $locks);
+    app()->instance(EvolverServiceProvider::LOCK_PROVIDER, $locks);
     config()->set('evolver.lock.seconds', '900');
     app()->forgetInstance(DeploymentManager::class);
     app(DeploymentManager::class)->deploy();
@@ -109,7 +121,7 @@ it('uses the configured lock duration', function (): void {
 });
 
 it('rejects concurrent deployment execution', function (): void {
-    $lock = app('evolver.lock.provider')->lock('evolver:deployment', 30);
+    $lock = app(EvolverServiceProvider::LOCK_PROVIDER)->lock('evolver:deployment', 30);
     expect($lock->get())->toBeTrue();
 
     try {

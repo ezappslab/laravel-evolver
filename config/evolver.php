@@ -100,6 +100,19 @@ return [
 
         /*
         |----------------------------------------------------------------------
+        | Cache Store
+        |----------------------------------------------------------------------
+        |
+        | This cache store supplies the atomic deployment lock. Null uses
+        | Laravel's default cache store. The selected store must support
+        | atomic locks.
+        |
+        */
+
+        'store' => env('EVOLVER_LOCK_STORE'),
+
+        /*
+        |----------------------------------------------------------------------
         | Lock Seconds
         |----------------------------------------------------------------------
         |

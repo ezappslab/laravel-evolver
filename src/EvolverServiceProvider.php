@@ -30,7 +30,7 @@ use Spatie\LaravelPackageTools\PackageServiceProvider;
 /** Registers Evolver's publishable assets, commands, services, and routing hooks. */
 final class EvolverServiceProvider extends PackageServiceProvider
 {
-    private const string LOCK_PROVIDER = 'evolver.lock.provider';
+    public const string LOCK_PROVIDER = 'evolver.lock.provider';
 
     /**
      * Configure the package's config, migrations, commands, and installer.
@@ -58,7 +58,7 @@ final class EvolverServiceProvider extends PackageServiceProvider
     {
         $this->app->scoped(ApiVersionContext::class);
         $this->app->singleton(self::LOCK_PROVIDER, function ($app): LockProvider {
-            $store = $app['cache.store']->getStore();
+            $store = $app['cache']->store(config('evolver.lock.store'))->getStore();
             if (! $store instanceof LockProvider) {
                 throw new \LogicException('The cache store must support atomic locks.');
             }
