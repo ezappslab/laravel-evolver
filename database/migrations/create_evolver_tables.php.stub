@@ -10,19 +10,22 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::connection(config('evolver.database.connection'))->create('evolutions', function (Blueprint $table): void {
-            $table->id();
-            $table->uuid('batch_id');
-            $table->string('action_id')->unique();
-            $table->string('checksum', 64);
-            $table->string('target_version')->nullable();
-            $table->unsignedInteger('duration_ms');
-            $table->timestamp('ran_at');
-        });
+        Schema::connection(config('evolver.database.connection'))
+            ->create('evolutions', function (Blueprint $table): void {
+                $table->id();
+                // Keep the v2 columns so existing execution records remain authoritative.
+                $table->uuid('batch_id')->index();
+                $table->string('action_id')->unique();
+                $table->string('checksum', 64);
+                $table->string('target_version')->nullable();
+                $table->unsignedInteger('duration_ms');
+                $table->timestamp('ran_at')->index();
+            });
     }
 
     public function down(): void
     {
-        Schema::connection(config('evolver.database.connection'))->dropIfExists('evolutions');
+        Schema::connection(config('evolver.database.connection'))
+            ->dropIfExists('evolutions');
     }
 };
