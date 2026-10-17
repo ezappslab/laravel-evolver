@@ -9,6 +9,7 @@ use Illuminate\Console\ConfirmableTrait;
 use Illuminate\Support\Arr;
 use Infinity\Evolver\Deployment\DeploymentManager;
 use Infinity\Evolver\Deployment\ExecutionPlan;
+use Infinity\Evolver\Deployment\PlannedAction;
 
 /** Plans and executes pending actions from the command line. */
 final class DeployCommand extends Command
@@ -43,7 +44,7 @@ final class DeployCommand extends Command
 
         try {
             $result = $manager->deploy((bool) $this->option('pretend'));
-            $ids = $result instanceof ExecutionPlan ? Arr::map($result->actions, static fn ($a): string => $a->descriptor->id) : $result->completed;
+            $ids = $result instanceof ExecutionPlan ? Arr::map($result->actions, static fn (PlannedAction $a): string => $a->descriptor->id) : $result->completed;
             foreach ($ids as $id) {
                 $this->line(($result instanceof ExecutionPlan ? 'Would execute: ' : 'Executed: ').$id);
             }

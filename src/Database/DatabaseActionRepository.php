@@ -14,7 +14,7 @@ use Infinity\Evolver\Exceptions\RepositoryUnavailableException;
 /** Query-builder repository retaining the v2 schema so existing records stay authoritative. */
 final class DatabaseActionRepository implements ActionRepository
 {
-    public const TABLE = 'evolutions';
+    public const string TABLE = 'evolutions';
 
     private bool $available = false;
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infinity\Evolver;
 
 use Illuminate\Contracts\Cache\LockProvider;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Database\Connection;
 use Illuminate\Routing\Router;
@@ -57,7 +58,7 @@ final class EvolverServiceProvider extends PackageServiceProvider
     public function packageRegistered(): void
     {
         $this->app->scoped(ApiVersionContext::class);
-        $this->app->singleton(self::LOCK_PROVIDER, function ($app): LockProvider {
+        $this->app->singleton(self::LOCK_PROVIDER, function (Application $app): LockProvider {
             $store = $app['cache']->store(config('evolver.lock.store'))->getStore();
             if (! $store instanceof LockProvider) {
                 throw new \LogicException('The cache store must support atomic locks.');
@@ -65,11 +66,11 @@ final class EvolverServiceProvider extends PackageServiceProvider
 
             return $store;
         });
-        $this->app->singleton(ActionRepository::class, fn ($app) => new DatabaseActionRepository($this->connection()));
-        $this->app->singleton(ActionSource::class, fn ($app) => new ActionDiscovery($app['files'], (string) config('evolver.actions.path')));
-        $this->app->singleton(Planner::class, fn ($app) => new Planner($app->make(ActionSource::class), $app->make(ActionRepository::class), $app->make(VersionManager::class), (bool) config('evolver.safety.fail_on_changed_action', true)));
-        $this->app->singleton(Runner::class, fn ($app) => new Runner($app->make(ActionRepository::class), $app->make(ActionSource::class), $this->connection(), TransactionMode::configured(config('evolver.transactions.mode', 'action'))));
-        $this->app->singleton(DeploymentManager::class, fn ($app) => new DeploymentManager($app->make(Planner::class), $app->make(Runner::class), $app->make(self::LOCK_PROVIDER), (int) config('evolver.lock.seconds', 300)));
+        $this->app->singleton(ActionRepository::class, fn (Application $app) => new DatabaseActionRepository($this->connection()));
+        $this->app->singleton(ActionSource::class, fn (Application $app) => new ActionDiscovery($app['files'], (string) config('evolver.actions.path')));
+        $this->app->singleton(Planner::class, fn (Application $app) => new Planner($app->make(ActionSource::class), $app->make(ActionRepository::class), $app->make(VersionManager::class), (bool) config('evolver.safety.fail_on_changed_action', true)));
+        $this->app->singleton(Runner::class, fn (Application $app) => new Runner($app->make(ActionRepository::class), $app->make(ActionSource::class), $this->connection(), TransactionMode::configured(config('evolver.transactions.mode', 'action'))));
+        $this->app->singleton(DeploymentManager::class, fn (Application $app) => new DeploymentManager($app->make(Planner::class), $app->make(Runner::class), $app->make(self::LOCK_PROVIDER), (int) config('evolver.lock.seconds', 300)));
     }
 
     /**
