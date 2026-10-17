@@ -32,8 +32,9 @@ final readonly class EvolverFake
     /**
      * Swap the container's action source for one serving the given actions.
      *
-     * The planner, runner, and managers are singletons holding the previous
-     * source, so they are forgotten and rebuilt against the fake on next use.
+     * The planner, runner, and deployment manager are singletons holding the
+     * previous source, so they are forgotten and rebuilt against the fake on
+     * next use. The facade's cached manager is cleared for the same reason.
      *
      * @param  array<string, Action>  $actions
      *
@@ -43,7 +44,7 @@ final readonly class EvolverFake
     {
         $source = new InMemoryActionSource($actions);
         $container->instance(ActionSource::class, $source);
-        foreach ([Planner::class, Runner::class, DeploymentManager::class, EvolverManager::class] as $class) {
+        foreach ([Planner::class, Runner::class, DeploymentManager::class] as $class) {
             $container->forgetInstance($class);
         }
         Facade::clearResolvedInstance(EvolverManager::class);

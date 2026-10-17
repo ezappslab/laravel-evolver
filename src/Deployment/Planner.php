@@ -106,7 +106,7 @@ final class Planner
             $descriptor->action();
             $actions[] = new PlannedAction($descriptor, $record);
         }
-        $actions = collect(Arr::sortDesc($actions, static fn (PlannedAction $action): string => $action->descriptor->id))->values()->all();
+        $actions = collect($actions)->sortByDesc(static fn (PlannedAction $action): string => $action->descriptor->id)->values()->all();
 
         return new ExecutionPlan(Direction::Down, $actions, $batch);
     }

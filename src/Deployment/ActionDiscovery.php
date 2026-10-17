@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Infinity\Evolver\Deployment;
 
 use Illuminate\Filesystem\Filesystem;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Infinity\Evolver\Contracts\ActionSource;
 use Infinity\Evolver\Exceptions\InvalidActionException;
@@ -56,9 +55,8 @@ final class ActionDiscovery implements ActionSource
             $path = $file->getPathname();
             $result[] = new ActionDescriptor($id, $path, $this->hash($id, $path), fn (): Action => $this->load($id, $path));
         }
-        $result = collect(Arr::sort($result, static fn (ActionDescriptor $action): string => $action->id))->values()->all();
 
-        return $result;
+        return collect($result)->sortBy(static fn (ActionDescriptor $action): string => $action->id)->values()->all();
     }
 
     /**

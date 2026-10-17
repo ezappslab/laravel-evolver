@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Infinity\Evolver\Testing;
 
-use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Infinity\Evolver\Contracts\ActionSource;
 use Infinity\Evolver\Deployment\Action;
@@ -99,13 +98,12 @@ final class InMemoryActionSource implements ActionSource
      */
     public function discover(?array $only = null): array
     {
-        $ids = collect($this->actions)->keys()->all();
+        $ids = collect($this->actions)->keys();
         if ($only !== null) {
-            $ids = collect(Arr::where($ids, static fn (string $id): bool => collect($only)->containsStrict($id)))->values()->all();
+            $ids = $ids->intersect($only);
         }
-        $ids = collect(Arr::sort($ids))->values()->all();
 
-        return Arr::map($ids, fn (string $id): ActionDescriptor => new ActionDescriptor($id, null, $this->hash($id), $this->actions[$id]));
+        return $ids->sort()->values()->map(fn (string $id): ActionDescriptor => new ActionDescriptor($id, null, $this->hash($id), $this->actions[$id]))->all();
     }
 
     /**
