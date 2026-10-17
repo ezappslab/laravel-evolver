@@ -52,7 +52,7 @@ final class ActionCommand extends Command
 
         $path = (string) config('evolver.actions.path');
         $this->files->ensureDirectoryExists($path);
-        $file = $path.'/'.now()->format('Y_m_d_His').'_'.Str::snake($name).'.php';
+        $file = $path.'/'.now()->format('Y_m_d_His').'_'.Str::snake(Str::replace('-', ' ', $name)).'.php';
         if ($this->files->exists($file)) {
             $this->components->error('An action with this timestamp and name already exists.');
 

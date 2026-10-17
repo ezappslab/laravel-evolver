@@ -39,7 +39,8 @@ it('creates timestamped actions from the package stub', function (string $name, 
         ->assertSuccessful();
 })->with([
     ['Fix Users', '2026_01_02_030405_fix_users.php'],
-    ['backfill-product-slugs', '2026_01_02_030405_backfill-product-slugs.php'],
+    ['backfill-product-slugs', '2026_01_02_030405_backfill_product_slugs.php'],
+    ['backfill-Product slugs_v2', '2026_01_02_030405_backfill_product_slugs_v2.php'],
 ]);
 
 it('never overwrites an existing action', function (): void {
