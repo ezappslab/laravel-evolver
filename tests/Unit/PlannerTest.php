@@ -40,6 +40,24 @@ it('applies actions only inside their version window', function (?string $introd
     'pre-release bounds' => ['2.0.0-rc.1', null, '2.0.0', true],
 ]);
 
+it('applies every action when application versioning is disabled', function (?string $introducedIn, ?string $expiresAt): void {
+    $planner = plannerFor(new RecordedAction('action', $introducedIn, $expiresAt), null);
+    config()->set('evolver.versioning.application.resolver', 'none');
+
+    expect($planner->status()->pending)->toHaveCount(1);
+})->with([
+    'introduced' => ['2.0.0', null],
+    'expiring' => [null, '2.0.0'],
+    'closed window' => ['1.0', '2.0'],
+]);
+
+it('still rejects malformed windows when application versioning is disabled', function (): void {
+    $planner = plannerFor(new RecordedAction('action', 'latest'), null);
+    config()->set('evolver.versioning.application.resolver', 'none');
+
+    expect(fn () => $planner->status())->toThrow(InvalidActionException::class, 'Action [001_action] has invalid version [latest].');
+});
+
 it('rejects malformed version windows', function (?string $introducedIn, ?string $expiresAt, string $message): void {
     expect(fn () => plannerFor(new RecordedAction('action', $introducedIn, $expiresAt), '1.0.0')->status())
         ->toThrow(InvalidActionException::class, $message);

@@ -60,6 +60,20 @@ final class VersionManager
     }
 
     /**
+     * Determine whether the application version is tracked.
+     *
+     * The "none" resolver disables application versioning, so action version
+     * windows are not enforced.
+     *
+     *
+     * @throws VersionResolutionException
+     */
+    public function tracksApplication(): bool
+    {
+        return ! $this->applicationResolver() instanceof NoneResolver;
+    }
+
+    /**
      * Resolve the API version declared by the configured request strategy.
      *
      *

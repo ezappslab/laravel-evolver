@@ -84,7 +84,7 @@ public function introducedIn(): ?string { return '2.1.0'; } // inclusive
 public function expiresAt(): ?string { return '3.0.0'; }    // exclusive
 ```
 
-Unconstrained actions always apply. Constrained actions wait when no application version exists. Invalid or empty windows fail planning.
+Unconstrained actions always apply. With the `none` resolver, application versioning is disabled and every action applies whatever window it declares. With any other resolver, constrained actions wait when no application version is resolved. Invalid or empty windows fail planning either way.
 
 ## Application version resolvers
 

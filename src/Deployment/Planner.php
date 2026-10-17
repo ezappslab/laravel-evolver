@@ -33,6 +33,7 @@ final class Planner
         $discovered = $this->source->discover();
         $executed = $this->repository->all();
         $version = $this->versions->application();
+        $windowed = $this->versions->tracksApplication();
         $pending = [];
         $changed = [];
         $seen = [];
@@ -41,7 +42,7 @@ final class Planner
             $record = $executed[$action->id] ?? null;
             if ($record && ! hash_equals($record->checksum, $action->checksum)) {
                 $changed[] = $action;
-            } elseif (! $record && $this->applies($action, $version)) {
+            } elseif (! $record && $this->applies($action, $version, $windowed)) {
                 $pending[] = $action;
             }
         }
@@ -115,13 +116,14 @@ final class Planner
      * Determine whether the action applies to the given application version.
      *
      * Evaluates the action's inclusive-minimum/exclusive-maximum version window.
-     * Actions without a window always apply; windowed actions never apply when
-     * no application version is resolved.
+     * Actions without a window always apply, as do all actions when application
+     * versioning is disabled. Otherwise windowed actions never apply when no
+     * application version is resolved. Windows are validated either way.
      *
      *
      * @throws InvalidActionException
      */
-    private function applies(ActionDescriptor $descriptor, ?string $version): bool
+    private function applies(ActionDescriptor $descriptor, ?string $version, bool $windowed): bool
     {
         $action = $descriptor->action();
         $min = $action->introducedIn();
@@ -134,7 +136,7 @@ final class Planner
         if ($min !== null && $max !== null && self::compare($min, $max, '>=')) {
             throw new InvalidActionException("Action [{$descriptor->id}] has an empty version window.");
         }
-        if ($min === null && $max === null) {
+        if (! $windowed || ($min === null && $max === null)) {
             return true;
         }
 
