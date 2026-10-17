@@ -16,6 +16,14 @@ use Infinity\Evolver\Facades\Evolver;
 use Tests\Support\ActionLog;
 use Tests\Support\RecordedAction;
 
+it('uses the Laravel cache store without binding the lock provider contract', function (): void {
+    $store = app('cache.store')->getStore();
+
+    expect($store)->toBeInstanceOf(LockProvider::class)
+        ->and(app('evolver.lock.provider'))->toBe($store)
+        ->and(app()->bound(LockProvider::class))->toBeFalse();
+});
+
 it('reports committed actions and history per transaction mode', function (string $mode, array $completed): void {
     config()->set('evolver.transactions.mode', $mode);
     $failure = Mockery::mock(Action::class)->makePartial();
@@ -88,7 +96,7 @@ it('uses the configured lock duration', function (): void {
             return (new ArrayStore)->restoreLock($name, $owner);
         }
     };
-    app()->instance(LockProvider::class, $locks);
+    app()->instance('evolver.lock.provider', $locks);
     config()->set('evolver.lock.seconds', '900');
     app()->forgetInstance(DeploymentManager::class);
     app(DeploymentManager::class)->deploy();
@@ -101,7 +109,7 @@ it('uses the configured lock duration', function (): void {
 });
 
 it('rejects concurrent deployment execution', function (): void {
-    $lock = app(LockProvider::class)->lock('evolver:deployment', 30);
+    $lock = app('evolver.lock.provider')->lock('evolver:deployment', 30);
     expect($lock->get())->toBeTrue();
 
     try {

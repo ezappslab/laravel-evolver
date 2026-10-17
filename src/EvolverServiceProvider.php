@@ -32,6 +32,8 @@ final class EvolverServiceProvider extends PackageServiceProvider
 {
     private const string DATABASE_CONNECTION = 'evolver.database.connection';
 
+    private const string LOCK_PROVIDER = 'evolver.lock.provider';
+
     /**
      * Configure the package's config, migrations, commands, and installer.
      */
@@ -59,7 +61,7 @@ final class EvolverServiceProvider extends PackageServiceProvider
         $this->app->scoped(ApiVersionContext::class);
         $this->app->singleton(VersionManager::class);
         $this->app->singleton(self::DATABASE_CONNECTION, fn ($app): Connection => $app['db']->connection(config('evolver.database.connection')));
-        $this->app->singleton(LockProvider::class, function ($app): LockProvider {
+        $this->app->singleton(self::LOCK_PROVIDER, function ($app): LockProvider {
             $store = $app['cache.store']->getStore();
             if (! $store instanceof LockProvider) {
                 throw new \LogicException('The cache store must support atomic locks.');
@@ -72,7 +74,7 @@ final class EvolverServiceProvider extends PackageServiceProvider
         $this->app->singleton(ActionSource::class, ActionDiscovery::class);
         $this->app->singleton(Planner::class, fn ($app) => new Planner($app->make(ActionSource::class), $app->make(ActionRepository::class), $app->make(VersionManager::class), (bool) config('evolver.safety.fail_on_changed_action', true)));
         $this->app->singleton(Runner::class, fn ($app) => new Runner($app->make(ActionRepository::class), $app->make(ActionSource::class), $app->make(self::DATABASE_CONNECTION), TransactionMode::configured(config('evolver.transactions.mode', 'action'))));
-        $this->app->singleton(DeploymentManager::class, fn ($app) => new DeploymentManager($app->make(Planner::class), $app->make(Runner::class), $app->make(LockProvider::class), (int) config('evolver.lock.seconds', 300)));
+        $this->app->singleton(DeploymentManager::class, fn ($app) => new DeploymentManager($app->make(Planner::class), $app->make(Runner::class), $app->make(self::LOCK_PROVIDER), (int) config('evolver.lock.seconds', 300)));
         $this->app->singleton(EvolverManager::class);
     }
 
