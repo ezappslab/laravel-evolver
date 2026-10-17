@@ -6,15 +6,15 @@ namespace Infinity\Evolver\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Console\ConfirmableTrait;
-use Illuminate\Support\Arr;
+use Infinity\Evolver\Commands\Concerns\RendersActions;
 use Infinity\Evolver\Deployment\DeploymentManager;
 use Infinity\Evolver\Deployment\ExecutionPlan;
-use Infinity\Evolver\Deployment\PlannedAction;
 
 /** Plans and reverses the latest or explicitly selected deployment batch. */
 final class RollbackCommand extends Command
 {
     use ConfirmableTrait;
+    use RendersActions;
 
     /**
      * The name and signature of the console command.
@@ -45,13 +45,17 @@ final class RollbackCommand extends Command
 
         try {
             $batch = $this->option('batch');
-            $result = $manager->rollback(is_string($batch) && $batch !== '' ? $batch : null, (bool) $this->option('pretend'));
-            $ids = $result instanceof ExecutionPlan ? Arr::map($result->actions, static fn (PlannedAction $a): string => $a->descriptor->id) : $result->completed;
-            foreach ($ids as $id) {
-                $this->line(($result instanceof ExecutionPlan ? 'Would roll back: ' : 'Rolled back: ').$id);
+            $batch = is_string($batch) && $batch !== '' ? $batch : null;
+            $pretend = (bool) $this->option('pretend');
+            $this->components->info(($pretend ? 'Planning rollback of ' : 'Rolling back ').($batch === null ? 'the latest Evolver batch.' : "Evolver batch [{$batch}]."));
+            $result = $manager->rollback($batch, $pretend);
+            $pretending = $result instanceof ExecutionPlan;
+            $actions = $pretending ? $result->actions : $result->completedActions();
+            foreach ($actions as $action) {
+                $this->renderAction($action->descriptor->id, $action->descriptor->loaded(), $pretending ? 'would roll back' : 'rolled back', $pretending ? 'yellow' : 'green', $result->batch);
             }
 
-            $this->components->info($ids === [] ? 'Nothing to roll back.' : 'Rollback complete.');
+            $this->components->info($actions === [] ? 'Nothing to roll back.' : 'Rollback complete.');
 
             return self::SUCCESS;
         } catch (\Throwable $e) {

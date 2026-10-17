@@ -28,7 +28,7 @@ final class Runner
     public function run(ExecutionPlan $plan): ExecutionResult
     {
         if ($plan->isEmpty()) {
-            return new ExecutionResult($plan->direction, $plan->batch, []);
+            return new ExecutionResult($plan->direction, $plan->batch, [], $plan);
         }
 
         return $this->mode === TransactionMode::Batch
@@ -59,7 +59,7 @@ final class Runner
             }
         }
 
-        return new ExecutionResult($plan->direction, $plan->batch, $done);
+        return new ExecutionResult($plan->direction, $plan->batch, $done, $plan);
     }
 
     /**
@@ -86,7 +86,7 @@ final class Runner
             throw new ActionExecutionException($current, [], $e);
         }
 
-        return new ExecutionResult($plan->direction, $plan->batch, $done);
+        return new ExecutionResult($plan->direction, $plan->batch, $done, $plan);
     }
 
     /**

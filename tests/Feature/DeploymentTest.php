@@ -117,19 +117,20 @@ it('classifies every action state for status reporting', function (): void {
         '2026_01_01_000004_expired',
         '2026_01_01_000005_window',
         'unknown',
-    ])->map(fn (string $id) => $status->stateOf($id))->all())->toBe([ActionState::Missing, ActionState::Executed, ActionState::Changed, ActionState::NotApplicable, ActionState::NotApplicable, ActionState::Pending, null]);
-
-    $this->artisan('evolver:status')
-        ->expectsOutputToContain('Application version: 2.0.0')
-        ->expectsTable(['Action', 'Status', 'Batch'], [
-            ['2026_01_01_000001_unversioned', 'executed', $batch],
-            ['2026_01_01_000002_introduced', 'changed', $batch],
-            ['2026_01_01_000003_future', 'not applicable', '—'],
-            ['2026_01_01_000004_expired', 'not applicable', '—'],
-            ['2026_01_01_000005_window', 'pending', '—'],
-            ['2026_01_01_000000_gone', 'missing', $batch],
-        ])
-        ->assertSuccessful();
+    ])->map(fn (string $id) => $status->stateOf($id))->all())->toBe([ActionState::Missing, ActionState::Executed, ActionState::Changed, ActionState::NotApplicable, ActionState::NotApplicable, ActionState::Pending, null])
+        ->and(commandLines('evolver:status'))->toBe([
+            'INFO Evolver deployment status.',
+            'Application version 2.0.0',
+            '2026_01_01_000001_unversioned executed',
+            "⤷ batch {$batch}",
+            '2026_01_01_000002_introduced changed',
+            "⤷ batch {$batch}",
+            '2026_01_01_000003_future from 3.0.0 not applicable',
+            '2026_01_01_000004_expired until 2.0.0 not applicable',
+            '2026_01_01_000005_window v1.0 → 3.0.0 pending',
+            '2026_01_01_000000_gone missing',
+            "⤷ batch {$batch}",
+        ]);
 });
 
 it('loads only the action files a plan needs', function (): void {

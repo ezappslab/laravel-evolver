@@ -24,10 +24,7 @@ it('deploys faked actions through the real commands and history', function (): v
     ]);
     $first->shouldReceive('up')->once();
 
-    $this->artisan('evolver:deploy')
-        ->expectsOutput('Executed: 2026_01_01_000001_first')
-        ->expectsOutput('Executed: 2026_01_01_000002_second')
-        ->assertSuccessful();
+    expect(commandLines('evolver:deploy'))->toContain('2026_01_01_000001_first executed', '2026_01_01_000002_second executed');
 
     $fake->assertExecuted('2026_01_01_000001_first', '2026_01_01_000002_second');
     $fake->touch('2026_01_01_000001_first');

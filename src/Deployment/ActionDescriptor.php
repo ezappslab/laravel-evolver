@@ -45,4 +45,14 @@ final class ActionDescriptor
 
         return $this->action;
     }
+
+    /**
+     * Get the action only if its source has already been loaded.
+     *
+     * Lets callers report on loaded actions without loading executed ones.
+     */
+    public function loaded(): ?Action
+    {
+        return $this->action instanceof Action ? $this->action : null;
+    }
 }

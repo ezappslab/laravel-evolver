@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Str;
 use Infinity\Evolver\Contracts\ActionRepository;
 use Tests\Support\ActionLog;
 use Tests\TestCase;
@@ -76,4 +78,17 @@ function useFixtures(string $scenario): string
 function recordHistory(string $id, string $checksum, string $batch = '00000000-0000-0000-0000-000000000001'): void
 {
     app(ActionRepository::class)->record($id, $checksum, $batch, 0, null);
+}
+
+/**
+ * Run an Artisan command and get its non-empty output lines with dot leaders collapsed.
+ *
+ * @param  array<string, mixed>  $parameters
+ * @return list<string>
+ */
+function commandLines(string $command, array $parameters = []): array
+{
+    Artisan::call($command, $parameters);
+
+    return collect(Str::of(Artisan::output())->explode("\n"))->map(fn (string $line): string => Str::squish(Str::replaceMatches('/ \.{2,} /', ' ', $line)))->filter()->values()->all();
 }

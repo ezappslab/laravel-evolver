@@ -10,35 +10,63 @@ use Tests\Support\RecordedAction;
 it('lists pending actions without executing them when pretending to deploy', function (): void {
     $fake = Evolver::fake(['001_first' => new RecordedAction('first')]);
 
-    $this->artisan('evolver:deploy', ['--pretend' => true])
-        ->expectsOutput('Would execute: 001_first')
-        ->assertSuccessful();
+    $lines = commandLines('evolver:deploy', ['--pretend' => true]);
 
+    expect($lines[0])->toBe('INFO Planning Evolver deployment.')
+        ->and($lines[1])->toBe('001_first would execute')
+        ->and($lines[2])->toMatch('/^⤷ batch [0-9a-f-]{36}$/');
     $fake->assertNothingDeployed();
+});
+
+it('shows the version window and batch of deployed actions', function (): void {
+    config()->set('app.version', '2.0.0');
+    config()->set('evolver.versioning.application.resolver', 'config');
+    Evolver::fake(['001_first' => new RecordedAction('first', '1.0.0', '3.0.0'), '002_second' => new RecordedAction('second')]);
+
+    $lines = commandLines('evolver:deploy');
+    $batch = app(DeploymentManager::class)->status()->executed['001_first']->batch;
+
+    expect($lines)->toBe([
+        'INFO Deploying Evolver actions.',
+        '001_first 1.0.0 → 3.0.0 executed',
+        "⤷ batch {$batch}",
+        '002_second executed',
+        "⤷ batch {$batch}",
+        'INFO Deployment complete.',
+    ]);
 });
 
 it('reports when there is nothing to deploy or roll back', function (): void {
     Evolver::fake();
 
-    $this->artisan('evolver:deploy')->expectsOutputToContain('Nothing to deploy.')->assertSuccessful();
-    $this->artisan('evolver:rollback')->expectsOutputToContain('Nothing to roll back.')->assertSuccessful();
+    expect(commandLines('evolver:deploy'))->toBe(['INFO Deploying Evolver actions.', 'INFO Nothing to deploy.'])
+        ->and(commandLines('evolver:rollback'))->toBe(['INFO Rolling back the latest Evolver batch.', 'INFO Nothing to roll back.']);
 });
 
 it('rolls back the latest batch from the command line', function (): void {
-    $fake = Evolver::fake(['001_first' => new RecordedAction('first'), '002_second' => new RecordedAction('second')]);
-    app(DeploymentManager::class)->deploy();
+    config()->set('app.version', '2.0.0');
+    config()->set('evolver.versioning.application.resolver', 'config');
+    $fake = Evolver::fake(['001_first' => new RecordedAction('first'), '002_second' => new RecordedAction('second', '1.0.0')]);
+    $batch = app(DeploymentManager::class)->deploy()->batch;
 
-    $this->artisan('evolver:rollback', ['--pretend' => true])
-        ->expectsOutput('Would roll back: 002_second')
-        ->expectsOutput('Would roll back: 001_first')
-        ->assertSuccessful();
+    expect(commandLines('evolver:rollback', ['--pretend' => true]))->toBe([
+        'INFO Planning rollback of the latest Evolver batch.',
+        '002_second from 1.0.0 would roll back',
+        "⤷ batch {$batch}",
+        '001_first would roll back',
+        "⤷ batch {$batch}",
+        'INFO Rollback complete.',
+    ]);
     $fake->assertExecuted('001_first', '002_second');
 
-    $this->artisan('evolver:rollback')
-        ->expectsOutput('Rolled back: 002_second')
-        ->expectsOutput('Rolled back: 001_first')
-        ->expectsOutputToContain('Rollback complete.')
-        ->assertSuccessful();
+    expect(commandLines('evolver:rollback'))->toBe([
+        'INFO Rolling back the latest Evolver batch.',
+        '002_second from 1.0.0 rolled back',
+        "⤷ batch {$batch}",
+        '001_first rolled back',
+        "⤷ batch {$batch}",
+        'INFO Rollback complete.',
+    ]);
     $fake->assertRolledBack('001_first', '002_second');
 });
 
@@ -48,11 +76,12 @@ it('rolls back only the batch given on the command line', function (): void {
     $fake->add('002_second', new RecordedAction('second'));
     app(DeploymentManager::class)->deploy();
 
-    $this->artisan('evolver:rollback', ['--batch' => $first->batch])
-        ->expectsOutput('Rolled back: 001_first')
-        ->doesntExpectOutput('Rolled back: 002_second')
-        ->assertSuccessful();
-
+    expect(commandLines('evolver:rollback', ['--batch' => $first->batch]))->toBe([
+        "INFO Rolling back Evolver batch [{$first->batch}].",
+        '001_first rolled back',
+        "⤷ batch {$first->batch}",
+        'INFO Rollback complete.',
+    ]);
     $fake->assertRolledBack('001_first')->assertExecuted('002_second');
 });
 

@@ -42,6 +42,7 @@ final class ActionCommand extends Command
      */
     public function handle(): int
     {
+        $this->components->info('Creating Evolver action.');
         $name = (string) $this->argument('name');
         if (! Str::isMatch('/^[A-Za-z0-9][A-Za-z0-9 _-]*$/', $name)) {
             $this->components->error('The action name may only contain letters, numbers, spaces, underscores, and hyphens.');
@@ -59,7 +60,8 @@ final class ActionCommand extends Command
         }
 
         $this->files->put($file, $this->files->get(dirname(__DIR__, 2).'/resources/stubs/action.stub'));
-        $this->components->info("Created action: {$file}");
+        $this->components->twoColumnDetail($file, '<fg=green;options=bold>created</>');
+        $this->newLine();
 
         return self::SUCCESS;
     }

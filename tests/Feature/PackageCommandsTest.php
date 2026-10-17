@@ -34,6 +34,7 @@ it('creates timestamped actions from the package stub', function (string $name, 
     Artisan::registerCommand(new ActionCommand($files));
 
     $this->artisan('evolver:action', ['name' => $name])
+        ->expectsOutputToContain('Creating Evolver action.')
         ->expectsOutputToContain('/app/deploy/actions/'.$file)
         ->assertSuccessful();
 })->with([

@@ -6,15 +6,15 @@ namespace Infinity\Evolver\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Console\ConfirmableTrait;
-use Illuminate\Support\Arr;
+use Infinity\Evolver\Commands\Concerns\RendersActions;
 use Infinity\Evolver\Deployment\DeploymentManager;
 use Infinity\Evolver\Deployment\ExecutionPlan;
-use Infinity\Evolver\Deployment\PlannedAction;
 
 /** Plans and executes pending actions from the command line. */
 final class DeployCommand extends Command
 {
     use ConfirmableTrait;
+    use RendersActions;
 
     /**
      * The name and signature of the console command.
@@ -43,13 +43,16 @@ final class DeployCommand extends Command
         }
 
         try {
-            $result = $manager->deploy((bool) $this->option('pretend'));
-            $ids = $result instanceof ExecutionPlan ? Arr::map($result->actions, static fn (PlannedAction $a): string => $a->descriptor->id) : $result->completed;
-            foreach ($ids as $id) {
-                $this->line(($result instanceof ExecutionPlan ? 'Would execute: ' : 'Executed: ').$id);
+            $pretend = (bool) $this->option('pretend');
+            $this->components->info($pretend ? 'Planning Evolver deployment.' : 'Deploying Evolver actions.');
+            $result = $manager->deploy($pretend);
+            $pretending = $result instanceof ExecutionPlan;
+            $actions = $pretending ? $result->actions : $result->completedActions();
+            foreach ($actions as $action) {
+                $this->renderAction($action->descriptor->id, $action->descriptor->loaded(), $pretending ? 'would execute' : 'executed', $pretending ? 'yellow' : 'green', $result->batch);
             }
 
-            $this->components->info($ids === [] ? 'Nothing to deploy.' : 'Deployment complete.');
+            $this->components->info($actions === [] ? 'Nothing to deploy.' : 'Deployment complete.');
 
             return self::SUCCESS;
         } catch (\Throwable $e) {
