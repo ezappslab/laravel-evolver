@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Infinity\Evolver\Testing;
 
+use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 use Infinity\Evolver\Contracts\ActionSource;
 use Infinity\Evolver\Deployment\Action;
 use Infinity\Evolver\Deployment\ActionDescriptor;
@@ -48,8 +50,8 @@ final class InMemoryActionSource implements ActionSource
      */
     public function add(string $id, Action $action): void
     {
-        foreach (array_keys($this->actions) as $existing) {
-            if (strtolower($existing) === strtolower($id)) {
+        foreach (collect($this->actions)->keys() as $existing) {
+            if (Str::lower($existing) === Str::lower($id)) {
                 throw new InvalidActionException("Duplicate action identity [{$id}].");
             }
         }
@@ -97,13 +99,13 @@ final class InMemoryActionSource implements ActionSource
      */
     public function discover(?array $only = null): array
     {
-        $ids = array_keys($this->actions);
+        $ids = collect($this->actions)->keys()->all();
         if ($only !== null) {
-            $ids = array_values(array_intersect($ids, $only));
+            $ids = collect(Arr::where($ids, static fn (string $id): bool => collect($only)->containsStrict($id)))->values()->all();
         }
-        sort($ids);
+        $ids = collect(Arr::sort($ids))->values()->all();
 
-        return array_map(fn (string $id): ActionDescriptor => new ActionDescriptor($id, null, $this->hash($id), $this->actions[$id]), $ids);
+        return Arr::map($ids, fn (string $id): ActionDescriptor => new ActionDescriptor($id, null, $this->hash($id), $this->actions[$id]));
     }
 
     /**

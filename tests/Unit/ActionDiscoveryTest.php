@@ -19,7 +19,7 @@ function actionFiles(array $names): Filesystem
 {
     $files = Mockery::mock(Filesystem::class);
     $files->shouldReceive('isDirectory')->with('/actions')->andReturnTrue();
-    $files->shouldReceive('files')->with('/actions')->andReturn(array_map(fn (string $name) => new SplFileInfo('/actions/'.$name, '', $name), $names));
+    $files->shouldReceive('files')->with('/actions')->andReturn(collect($names)->map(fn (string $name) => new SplFileInfo('/actions/'.$name, '', $name))->all());
 
     return $files;
 }
@@ -28,7 +28,7 @@ it('discovers PHP fixtures in identifier order with file checksums', function ()
     $path = fixtures('deploy');
     $actions = (new ActionDiscovery(new Filesystem, $path))->discover();
 
-    expect(array_map(fn (ActionDescriptor $a) => $a->id, $actions))->toBe(['2026_01_01_000001_first', '2026_01_01_000002_second'])
+    expect(collect($actions)->map(fn (ActionDescriptor $a) => $a->id)->all())->toBe(['2026_01_01_000001_first', '2026_01_01_000002_second'])
         ->and($actions[0]->checksum)->toBe(hash_file('sha256', $path.'/2026_01_01_000001_first.php'))
         ->and($actions[1]->checksum)->toBe(hash_file('sha256', $path.'/2026_01_01_000002_second.php'))
         ->and($actions[0]->action())->toBeInstanceOf(Action::class);
@@ -37,7 +37,7 @@ it('discovers PHP fixtures in identifier order with file checksums', function ()
 it('filters discovery to the given identifiers', function (): void {
     $discovery = new ActionDiscovery(new Filesystem, fixtures('deploy'));
 
-    expect(array_map(fn (ActionDescriptor $a) => $a->id, $discovery->discover(['2026_01_01_000002_second', 'unknown'])))->toBe(['2026_01_01_000002_second'])
+    expect(collect($discovery->discover(['2026_01_01_000002_second', 'unknown']))->map(fn (ActionDescriptor $a) => $a->id)->all())->toBe(['2026_01_01_000002_second'])
         ->and($discovery->discover([]))->toBeEmpty();
 });
 
@@ -49,7 +49,7 @@ it('sorts by identifier and ignores non-PHP files', function (): void {
     $files = actionFiles(['002_b.php', 'README.md', '001_a.php', '003_c.PHP']);
     $files->shouldReceive('hash')->andReturn('checksum');
 
-    expect(array_map(fn (ActionDescriptor $a) => $a->id, (new ActionDiscovery($files, '/actions'))->discover()))->toBe(['001_a', '002_b']);
+    expect(collect((new ActionDiscovery($files, '/actions'))->discover())->map(fn (ActionDescriptor $a) => $a->id)->all())->toBe(['001_a', '002_b']);
 });
 
 it('rejects identities that differ only by case', function (?array $only): void {

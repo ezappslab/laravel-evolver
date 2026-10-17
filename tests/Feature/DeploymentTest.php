@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Database\QueryException;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Infinity\Evolver\Contracts\ActionSource;
 use Infinity\Evolver\Database\DatabaseActionRepository;
 use Infinity\Evolver\Deployment\Action;
@@ -42,10 +43,10 @@ it('rolls back an older batch from only its own records', function (): void {
     $fake->add('002_second', new RecordedAction('second'));
     $second = app(DeploymentManager::class)->deploy();
 
-    expect(array_keys(app(DatabaseActionRepository::class)->forBatch($first->batch)))->toBe(['001_first'])
+    expect(collect(app(DatabaseActionRepository::class)->forBatch($first->batch))->keys()->all())->toBe(['001_first'])
         ->and(app(DatabaseActionRepository::class)->forBatch('unknown'))->toBeEmpty()
         ->and(app(DeploymentManager::class)->rollback($first->batch)->completed)->toBe(['001_first'])
-        ->and(array_keys(app(DatabaseActionRepository::class)->all()))->toBe(['002_second'])
+        ->and(collect(app(DatabaseActionRepository::class)->all())->keys()->all())->toBe(['002_second'])
         ->and(app(DeploymentManager::class)->rollback($first->batch)->completed)->toBeEmpty()
         ->and($second->completed)->toBe(['002_second'])
         ->and(ActionLog::entries())->toBe(['first.up', 'second.up', 'first.down']);
@@ -79,7 +80,7 @@ it('applies optional version constraints', function (?string $version, array $ex
     config()->set('app.version', $version);
     config()->set('evolver.versioning.application.resolver', 'config');
 
-    expect(array_map(fn ($a) => $a->descriptor->id, app(DeploymentManager::class)->plan()->actions))->toBe($expected);
+    expect(collect(app(DeploymentManager::class)->plan()->actions)->map(fn ($a) => $a->descriptor->id)->all())->toBe($expected);
 })->with([
     'no version' => [null, ['2026_01_01_000001_unversioned']],
     'inside every open window' => ['2.0.0', ['2026_01_01_000001_unversioned', '2026_01_01_000002_introduced', '2026_01_01_000005_window']],
@@ -90,11 +91,11 @@ it('applies optional version constraints', function (?string $version, array $ex
 it('detects changed and missing historical actions', function (): void {
     $path = useFixtures('deploy');
     recordHistory('2026_01_01_000001_first', hash_file('sha256', $path.'/2026_01_01_000001_first.php'));
-    recordHistory('2026_01_01_000002_second', str_repeat('0', 64));
+    recordHistory('2026_01_01_000002_second', Str::repeat('0', 64));
     expect(fn () => app(DeploymentManager::class)->plan())->toThrow(ActionChangedException::class, '2026_01_01_000002_second');
 
     Schema::getConnection()->table('evolutions')->where('action_id', '2026_01_01_000002_second')->delete();
-    recordHistory('2026_01_01_000000_gone', str_repeat('0', 64));
+    recordHistory('2026_01_01_000000_gone', Str::repeat('0', 64));
     expect(fn () => app(DeploymentManager::class)->plan())->toThrow(InvalidActionException::class, 'Executed action files are missing: 2026_01_01_000000_gone.');
 });
 
@@ -103,12 +104,12 @@ it('classifies every action state for status reporting', function (): void {
     config()->set('app.version', '2.0.0');
     config()->set('evolver.versioning.application.resolver', 'config');
     $batch = '00000000-0000-0000-0000-000000000001';
-    recordHistory('2026_01_01_000000_gone', str_repeat('0', 64), $batch);
+    recordHistory('2026_01_01_000000_gone', Str::repeat('0', 64), $batch);
     recordHistory('2026_01_01_000001_unversioned', hash_file('sha256', $path.'/2026_01_01_000001_unversioned.php'), $batch);
-    recordHistory('2026_01_01_000002_introduced', str_repeat('0', 64), $batch);
+    recordHistory('2026_01_01_000002_introduced', Str::repeat('0', 64), $batch);
 
     $status = app(DeploymentManager::class)->status();
-    expect(array_map(fn (string $id) => $status->stateOf($id), [
+    expect(collect([
         '2026_01_01_000000_gone',
         '2026_01_01_000001_unversioned',
         '2026_01_01_000002_introduced',
@@ -116,7 +117,7 @@ it('classifies every action state for status reporting', function (): void {
         '2026_01_01_000004_expired',
         '2026_01_01_000005_window',
         'unknown',
-    ]))->toBe([ActionState::Missing, ActionState::Executed, ActionState::Changed, ActionState::NotApplicable, ActionState::NotApplicable, ActionState::Pending, null]);
+    ])->map(fn (string $id) => $status->stateOf($id))->all())->toBe([ActionState::Missing, ActionState::Executed, ActionState::Changed, ActionState::NotApplicable, ActionState::NotApplicable, ActionState::Pending, null]);
 
     $this->artisan('evolver:status')
         ->expectsOutputToContain('Application version: 2.0.0')

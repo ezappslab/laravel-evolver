@@ -6,6 +6,7 @@ namespace Infinity\Evolver\Versioning\Resolvers;
 
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Process\Factory;
+use Illuminate\Support\Str;
 use Infinity\Evolver\Contracts\ApplicationVersionResolver;
 use Infinity\Evolver\Exceptions\VersionResolutionException;
 
@@ -37,7 +38,7 @@ final class GitTagResolver implements ApplicationVersionResolver
         }
 
         $repository = $this->processes->newPendingProcess()->path($this->path)->run(['git', 'rev-parse', '--is-inside-work-tree']);
-        if (! $repository->successful() || trim($repository->output()) !== 'true') {
+        if (! $repository->successful() || Str::trim($repository->output()) !== 'true') {
             throw new VersionResolutionException('Git metadata is unavailable.');
         }
 
@@ -46,10 +47,10 @@ final class GitTagResolver implements ApplicationVersionResolver
             throw new VersionResolutionException('No reachable Git tag could be resolved.');
         }
 
-        $tag = trim($process->output());
+        $tag = Str::trim($process->output());
         foreach ($this->prefixes as $prefix) {
-            if ($prefix !== '' && str_starts_with($tag, $prefix)) {
-                $tag = substr($tag, strlen($prefix));
+            if ($prefix !== '' && Str::startsWith($tag, $prefix)) {
+                $tag = Str::substr($tag, Str::length($prefix));
 
                 break;
             }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infinity\Evolver\Versioning\Resolvers;
 
 use Illuminate\Filesystem\Filesystem;
+use Illuminate\Support\Str;
 use Infinity\Evolver\Contracts\ApplicationVersionResolver;
 use Infinity\Evolver\Exceptions\VersionResolutionException;
 
@@ -39,6 +40,6 @@ final class JsonResolver implements ApplicationVersionResolver
             throw new VersionResolutionException("JSON version key [{$this->key}] is missing or invalid.");
         }
 
-        return trim((string) $value);
+        return Str::trim((string) $value);
     }
 }

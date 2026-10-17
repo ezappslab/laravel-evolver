@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infinity\Evolver\Versioning\Resolvers;
 
 use Illuminate\Filesystem\Filesystem;
+use Illuminate\Support\Str;
 use Infinity\Evolver\Contracts\ApplicationVersionResolver;
 use Infinity\Evolver\Exceptions\VersionResolutionException;
 
@@ -30,7 +31,7 @@ final class FileResolver implements ApplicationVersionResolver
             throw new VersionResolutionException('Configured version file is missing.');
         }
 
-        $value = trim($this->files->get($this->path));
+        $value = Str::trim($this->files->get($this->path));
 
         return $value === '' ? null : $value;
     }

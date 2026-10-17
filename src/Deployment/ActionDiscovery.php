@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Infinity\Evolver\Deployment;
 
 use Illuminate\Filesystem\Filesystem;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 use Infinity\Evolver\Contracts\ActionSource;
 use Infinity\Evolver\Exceptions\InvalidActionException;
 
@@ -37,13 +39,13 @@ final class ActionDiscovery implements ActionSource
         }
         $result = [];
         $identities = [];
-        $wanted = $only === null ? null : array_fill_keys($only, true);
+        $wanted = $only === null ? null : collect($only)->flip()->all();
         foreach ($this->files->files($this->path) as $file) {
             if ($file->getExtension() !== 'php') {
                 continue;
             }
             $id = $file->getBasename('.php');
-            $normalized = strtolower($id);
+            $normalized = Str::lower($id);
             if (isset($identities[$normalized])) {
                 throw new InvalidActionException("Duplicate action identity [{$id}].");
             }
@@ -54,7 +56,7 @@ final class ActionDiscovery implements ActionSource
             $path = $file->getPathname();
             $result[] = new ActionDescriptor($id, $path, $this->hash($id, $path), fn (): Action => $this->load($id, $path));
         }
-        usort($result, static fn (ActionDescriptor $a, ActionDescriptor $b): int => $a->id <=> $b->id);
+        $result = collect(Arr::sort($result, static fn (ActionDescriptor $action): string => $action->id))->values()->all();
 
         return $result;
     }

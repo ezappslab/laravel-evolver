@@ -10,7 +10,7 @@ use Infinity\Evolver\Commands\ActionCommand;
 use Infinity\Evolver\EvolverManager;
 
 it('boots manager commands and route macro', function (): void {
-    expect(app(EvolverManager::class))->toBeInstanceOf(EvolverManager::class)->and(array_keys(Artisan::all()))->toContain('evolver:install', 'evolver:action', 'evolver:status', 'evolver:deploy', 'evolver:rollback');
+    expect(app(EvolverManager::class))->toBeInstanceOf(EvolverManager::class)->and(collect(Artisan::all())->keys()->all())->toContain('evolver:install', 'evolver:action', 'evolver:status', 'evolver:deploy', 'evolver:rollback');
     Route::apiVersion('v1', fn () => Route::get('/health', fn () => 'ok')->name('v1.health'), []);
     Route::getRoutes()->refreshNameLookups();
     expect(Route::getRoutes()->getByName('v1.health')?->uri())->toBe('api/v1/health');

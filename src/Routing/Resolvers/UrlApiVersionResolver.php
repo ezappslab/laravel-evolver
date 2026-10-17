@@ -23,9 +23,9 @@ final class UrlApiVersionResolver implements ApiVersionResolver
      */
     public function resolve(Request $request): ?string
     {
-        $pattern = '#^'.preg_quote(trim($this->basePath, '/'), '#').'/([^/]+)(?:/|$)#';
+        $pattern = '#^'.preg_quote(Str::trim($this->basePath, '/'), '#').'/([^/]+)(?:/|$)#';
 
-        $version = Str::match($pattern, trim($request->path(), '/'));
+        $version = Str::match($pattern, Str::trim($request->path(), '/'));
 
         return $version === '' ? null : $version;
     }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infinity\Evolver\Versioning\Resolvers;
 
 use Illuminate\Contracts\Config\Repository;
+use Illuminate\Support\Str;
 use Infinity\Evolver\Contracts\ApplicationVersionResolver;
 use Infinity\Evolver\Exceptions\VersionResolutionException;
 
@@ -35,6 +36,6 @@ final class ConfigResolver implements ApplicationVersionResolver
             throw new VersionResolutionException("Configuration [{$this->key}] must contain a version string.");
         }
 
-        return trim((string) $value);
+        return Str::trim((string) $value);
     }
 }

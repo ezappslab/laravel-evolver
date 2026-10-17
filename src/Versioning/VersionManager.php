@@ -145,6 +145,6 @@ final class VersionManager
      */
     public function apiBasePath(): string
     {
-        return trim((string) config('evolver.versioning.api.resolvers.url.base_path', 'api'), '/');
+        return Str::trim((string) config('evolver.versioning.api.resolvers.url.base_path', 'api'), '/');
     }
 }

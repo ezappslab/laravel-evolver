@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Infinity\Evolver\Deployment;
 
+use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 use Infinity\Evolver\Contracts\ActionRepository;
 use Infinity\Evolver\Contracts\ActionSource;
 use Infinity\Evolver\Exceptions\ActionChangedException;
@@ -43,7 +45,7 @@ final class Planner
                 $pending[] = $action;
             }
         }
-        $missing = array_values(array_filter($executed, static fn (ExecutionRecord $record): bool => ! isset($seen[$record->id])));
+        $missing = collect(Arr::where($executed, static fn (ExecutionRecord $record): bool => ! isset($seen[$record->id])))->values()->all();
 
         return new DeploymentStatus($discovered, $pending, $changed, $missing, $executed, $version);
     }
@@ -60,13 +62,13 @@ final class Planner
     {
         $status = $this->status();
         if ($status->missing !== []) {
-            throw new InvalidActionException('Executed action files are missing: '.implode(', ', array_map(static fn (ExecutionRecord $r): string => $r->id, $status->missing)).'.');
+            throw new InvalidActionException('Executed action files are missing: '.Arr::join(Arr::map($status->missing, static fn (ExecutionRecord $r): string => $r->id), ', ').'.');
         }
         if ($this->failOnChangedAction && $status->changed !== []) {
-            throw new ActionChangedException('Previously executed actions have changed: '.implode(', ', array_map(static fn (ActionDescriptor $a): string => $a->id, $status->changed)).'.');
+            throw new ActionChangedException('Previously executed actions have changed: '.Arr::join(Arr::map($status->changed, static fn (ActionDescriptor $a): string => $a->id), ', ').'.');
         }
 
-        return new ExecutionPlan(Direction::Up, array_map(static fn (ActionDescriptor $a): PlannedAction => new PlannedAction($a), $status->pending), $this->repository->nextBatch(), $status->applicationVersion);
+        return new ExecutionPlan(Direction::Up, Arr::map($status->pending, static fn (ActionDescriptor $a): PlannedAction => new PlannedAction($a)), $this->repository->nextBatch(), $status->applicationVersion);
     }
 
     /**
@@ -90,7 +92,7 @@ final class Planner
         }
         $records = $this->repository->forBatch($batch);
         $found = [];
-        foreach ($this->source->discover(array_keys($records)) as $a) {
+        foreach ($this->source->discover(collect($records)->keys()->all()) as $a) {
             $found[$a->id] = $a;
         }
 
@@ -104,7 +106,7 @@ final class Planner
             $descriptor->action();
             $actions[] = new PlannedAction($descriptor, $record);
         }
-        usort($actions, static fn (PlannedAction $a, PlannedAction $b): int => $b->descriptor->id <=> $a->descriptor->id);
+        $actions = collect(Arr::sortDesc($actions, static fn (PlannedAction $action): string => $action->descriptor->id))->values()->all();
 
         return new ExecutionPlan(Direction::Down, $actions, $batch);
     }
@@ -149,6 +151,6 @@ final class Planner
      */
     private static function compare(string $a, string $b, string $operator): bool
     {
-        return version_compare(ltrim($a, 'vV'), ltrim($b, 'vV'), $operator);
+        return version_compare(Str::ltrim($a, 'vV'), Str::ltrim($b, 'vV'), $operator);
     }
 }

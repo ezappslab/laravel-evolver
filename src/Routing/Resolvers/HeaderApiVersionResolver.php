@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infinity\Evolver\Routing\Resolvers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Infinity\Evolver\Contracts\ApiVersionResolver;
 
 /** Extracts the requested version from a configurable HTTP header. */
@@ -24,6 +25,6 @@ final class HeaderApiVersionResolver implements ApiVersionResolver
     {
         $value = $request->headers->get($this->header);
 
-        return $value === null || trim($value) === '' ? null : trim($value);
+        return $value === null || Str::trim($value) === '' ? null : Str::trim($value);
     }
 }

@@ -6,6 +6,7 @@ namespace Infinity\Evolver\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Console\ConfirmableTrait;
+use Illuminate\Support\Arr;
 use Infinity\Evolver\Deployment\DeploymentManager;
 use Infinity\Evolver\Deployment\ExecutionPlan;
 
@@ -44,7 +45,7 @@ final class RollbackCommand extends Command
         try {
             $batch = $this->option('batch');
             $result = $manager->rollback(is_string($batch) && $batch !== '' ? $batch : null, (bool) $this->option('pretend'));
-            $ids = $result instanceof ExecutionPlan ? array_map(static fn ($a): string => $a->descriptor->id, $result->actions) : $result->completed;
+            $ids = $result instanceof ExecutionPlan ? Arr::map($result->actions, static fn ($a): string => $a->descriptor->id) : $result->completed;
             foreach ($ids as $id) {
                 $this->line(($result instanceof ExecutionPlan ? 'Would roll back: ' : 'Rolled back: ').$id);
             }

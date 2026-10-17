@@ -6,6 +6,7 @@ namespace Infinity\Evolver\Testing;
 
 use Illuminate\Container\Container;
 use Illuminate\Contracts\Container\BindingResolutionException;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Facade;
 use Infinity\Evolver\Contracts\ActionRepository;
 use Infinity\Evolver\Contracts\ActionSource;
@@ -146,8 +147,8 @@ final readonly class EvolverFake
      */
     public function assertNothingDeployed(): self
     {
-        $history = array_keys($this->history());
-        Assert::assertSame([], $history, 'Evolver actions were deployed: '.implode(', ', $history).'.');
+        $history = collect($this->history())->keys()->all();
+        Assert::assertSame([], $history, 'Evolver actions were deployed: '.Arr::join($history, ', ').'.');
 
         return $this;
     }
