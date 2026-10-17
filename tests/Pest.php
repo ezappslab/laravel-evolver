@@ -1,6 +1,10 @@
 <?php
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Str;
+use Infinity\Evolver\Contracts\ActionRepository;
+use Tests\Support\ActionLog;
 use Tests\TestCase;
 
 /*
@@ -16,7 +20,12 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
+    ->beforeEach(fn () => ActionLog::reset())
     ->in('Feature');
+
+pest()->extend(TestCase::class)
+    ->beforeEach(fn () => ActionLog::reset())
+    ->in('Unit');
 
 /*
 |--------------------------------------------------------------------------
@@ -44,7 +53,42 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/**
+ * Get the path of a read-only action fixture scenario.
+ */
+function fixtures(string $scenario): string
 {
-    // ..
+    return __DIR__.'/Fixtures/actions/'.$scenario;
+}
+
+/**
+ * Point action discovery at a read-only fixture scenario.
+ */
+function useFixtures(string $scenario): string
+{
+    $path = fixtures($scenario);
+    config()->set('evolver.actions.path', $path);
+
+    return $path;
+}
+
+/**
+ * Insert a history row, as if the action had been deployed.
+ */
+function recordHistory(string $id, string $checksum, string $batch = '00000000-0000-0000-0000-000000000001'): void
+{
+    app(ActionRepository::class)->record($id, $checksum, $batch, 0, null);
+}
+
+/**
+ * Run an Artisan command and get its non-empty output lines with dot leaders collapsed.
+ *
+ * @param  array<string, mixed>  $parameters
+ * @return list<string>
+ */
+function commandLines(string $command, array $parameters = []): array
+{
+    Artisan::call($command, $parameters);
+
+    return collect(Str::of(Artisan::output())->explode("\n"))->map(fn (string $line): string => Str::squish(Str::replaceMatches('/ \.{2,} /', ' ', $line)))->filter()->values()->all();
 }

@@ -4,12 +4,18 @@ declare(strict_types=1);
 
 namespace Infinity\Evolver\Exceptions;
 
-use Infinity\Evolver\Api\ApiVersion;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
-final class UnsupportedApiVersionException extends EvolverException
+/** HTTP-safe failure for invalid or unsupported public API versions. */
+final class UnsupportedApiVersionException extends HttpException
 {
-    public function __construct(public readonly ApiVersion $version)
+    /**
+     * Create a new unsupported API version exception instance.
+     *
+     * The exception renders as a 404 response.
+     */
+    public function __construct(string $message)
     {
-        parent::__construct("Unsupported API version [{$version->value}].");
+        parent::__construct(404, $message);
     }
 }

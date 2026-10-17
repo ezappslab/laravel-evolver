@@ -1,0 +1,1 @@
+Non-PHP files in the actions directory are ignored by discovery.

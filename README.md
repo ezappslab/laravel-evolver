@@ -1,171 +1,148 @@
-# Laravel Evolver
+# Laravel Evolver v3
 
-Laravel Evolver discovers and executes deterministic, one-time application evolution actions for Laravel 12 and 13 on PHP 8.4.
+Evolver executes deployment-time application changes exactly once. It offers deterministic plans, forward and backward actions, checksummed database history, atomic execution locking, optional application-version windows, and URL- or header-versioned Laravel routing.
 
-## Installation
+## Features and requirements
+
+Evolver supports PHP 8.4 and Laravel 12/13. It uses Laravel's container, database, cache locks, routing, console, and filesystem together with Spatie Laravel Package Tools. Package discovery loads configuration and registers publishable migrations, commands, the facade, and routing integration.
+
+## Installation and migrations
 
 ```bash
 composer require ezappslab/laravel-evolver
 php artisan evolver:install
-php artisan migrate
 ```
 
-## Actions
+`evolver:install` publishes `config/evolver.php` and the Evolver migration, then offers to run your migrations. If you decline, run `php artisan migrate` before deploying.
 
-Generate an action with a PHP class-style name:
-
-```bash
-php artisan evolver:action BackfillUserProfiles
-```
-
-The command writes a timestamped file such as `2026_08_09_123456_backfill_user_profiles.php` to `evolver.actions_path`. The filename without `.php` is its stable database identity. Files are always planned in lexical filename order.
-
-An action returns an anonymous class extending `Infinity\Evolver\Contracts\Action`:
-
-```php
-<?php
-
-declare(strict_types=1);
-
-use Infinity\Evolver\Contracts\Action;
-
-return new class extends Action
-{
-    public function introducedIn(): ?string
-    {
-        return '1.2.0';
-    }
-
-    public function requiredUntil(): ?string
-    {
-        return '2.0.0';
-    }
-
-    public function handle(): void
-    {
-        // Perform the one-time change.
-    }
-};
-```
-
-The interval includes `introducedIn` and excludes `requiredUntil`. Either bound may be `null`.
-When both bounds are present, `introducedIn` must be earlier than `requiredUntil`.
+The published migration creates `evolutions`. Evolver never creates or changes tables during service resolution or HTTP requests.
 
 ## Configuration
 
-`evolver.versioning.strategy` accepts the `VersionStrategy` enum or its scalar value:
+Important keys in `config/evolver.php` are:
 
-- `none`: resolves no application version, disables version filtering, and makes every unexecuted action applicable.
-- `file`: reads `versioning.file.path`.
-- `config`: reads `versioning.config.key`.
-- `json`: reads `versioning.json.path` at `versioning.json.key`.
-- `git`: reads the latest Git tag and removes `versioning.git.strip_prefix`.
+| Key | Default |
+|---|---|
+| `actions.path` | `deploy/actions` |
+| `database.connection` | Laravel default |
+| `transactions.mode` | `action` |
+| `lock.seconds` | `300` |
+| `versioning.application.resolver` | `none` |
+| file/config/JSON sources | `VERSION`, `app.version`, `composer.json:version` |
+| `versioning.application.resolvers.git.prefixes` | `['v', 'V']` |
+| `versioning.api.resolver` | `url` |
+| `versioning.api.resolvers.url.base_path` | `api` |
+| `versioning.api.resolvers.header.name` | `X-API-Version` |
+| `safety.fail_on_changed_action` | `true` |
 
-Non-`none` strategies require valid semantic versions, including optional prerelease and build metadata, and use semantic-version comparisons. If a configured source contains no version, `versioning.required` determines whether planning throws or produces no applicable actions. Unreadable, malformed, or otherwise invalid sources always fail planning.
+`versioning.api.versions` lists versions that clients may request.
 
-Set `evolver.database.connection` to a Laravel connection name to use a dedicated connection. Evolution records, their migration, and package-managed transactions share this connection; a `null` value uses Laravel's default connection.
+## Actions and execution planning
 
-## Planning and status
+```bash
+php artisan evolver:action backfill-product-slugs
+```
+
+The command creates a timestamped anonymous action. Its filename is its stable identity and forward ordering key.
+
+```php
+use Infinity\Evolver\Deployment\Action;
+
+return new class extends Action {
+    public function up(): void { /* apply */ }
+    public function down(): void { /* reverse */ }
+};
+```
+
+Planning checksums every action file but loads only the actions it may run: actions not yet executed for a deploy or status and the batch's actions for a rollback. It never invokes `up()` or `down()`, and an executed action that no longer loads does not block later deploys. Plans are immutable and dry runs use the same planner. Omitting `down()` makes rollback explicitly fail as irreversible.
+
+## Deploy, status, and rollback
 
 ```bash
 php artisan evolver:status
-php artisan evolver:deploy --dry-run
+php artisan evolver:deploy
+php artisan evolver:deploy --pretend
+php artisan evolver:deploy --force
+php artisan evolver:rollback
+php artisan evolver:rollback --batch=<uuid> --pretend
 ```
 
-Both commands use the same authoritative Planner and display every discovered action:
+Production commands confirm unless `--force` is used. Rollback defaults to the latest batch and reverses its actions in reverse order. History is added only after successful `up()` and removed only after successful `down()`.
 
-- `pending`: unexecuted, applicable, and selected to run.
-- `executed`: previously committed successfully and never selected again.
-- `not_applicable`: unexecuted but outside the selected target-version interval.
+## Transactions, locking, checksums, and errors
 
-An executed action whose SHA-256 checksum changes causes planning to fail when `safety.fail_on_changed_action` is enabled. Dry-run performs discovery, materialization, version resolution, and Evolution reads, but never invokes actions, starts an execution transaction, or writes application/Evolution state.
+Transaction modes are `none`, `action` (default), and `batch`. History shares the configured database connection and transaction. Transactions cannot undo external APIs, files, or nontransactional DDL, so those actions should be recoverable.
 
-Before each pending action executes, Evolver recomputes its checksum and aborts if the file has changed or disappeared since planning. This execution-time integrity check is always enabled.
+One Laravel atomic cache lock spans final planning and execution, preventing concurrent deploy/rollback races. The cache store must support locks.
 
-## API versioning
+Successful actions store a SHA-256 source checksum. Changed or missing historical actions are reported as integrity failures; disabling `safety.fail_on_changed_action` permits changed sources but never causes recorded actions to rerun. Exceptions distinguish invalid actions, unavailable storage, resolution failures, locking, unsupported API versions, and execution failures. Public API errors do not expose internal paths.
 
-Evolver can register URL-based major API versions and manage their runtime lifecycle independently from the application version used for evolution actions. The feature is opt-in:
+## Optional version applicability
 
 ```php
-'api' => [
-    'enabled' => true,
-    'base_path' => 'api',
-    'versions' => [
-        'v1' => [
-            'routes' => base_path('routes/api/v1.php'),
-            'middleware' => ['api'],
-            'deprecated_at' => '2027-01-01T00:00:00Z',
-            'sunset_at' => '2027-08-01T00:00:00Z',
-            'successor' => 'v2',
-            'successor_url' => '/api/v2',
-        ],
-        'v2' => [
-            'routes' => base_path('routes/api/v2.php'),
-            'middleware' => ['api'],
-        ],
-    ],
-],
+public function introducedIn(): ?string { return '2.1.0'; } // inclusive
+public function expiresAt(): ?string { return '3.0.0'; }    // exclusive
 ```
 
-Routes in these files are exposed at `/api/v1`, `/api/v2`, and so on. API versions must use major identifiers such as `v1`; each successor must also be registered. A sunset date requires an earlier deprecation date.
+Unconstrained actions always apply. With the `none` resolver, application versioning is disabled and every action applies whatever window it declares. With any other resolver, constrained actions wait when no application version is resolved. Invalid or empty windows fail planning either way.
 
-Evolver loads every route file listed under `evolver.api.versions`; do not also register those files in Laravel's `bootstrap/app.php`. If all API routes are managed by Evolver, remove Laravel's default `api:` entry:
+## Application version resolvers
 
-```php
-->withRouting(
-    web: __DIR__.'/../routes/web.php',
-    commands: __DIR__.'/../routes/console.php',
-    health: '/up',
-)
-```
+Select `none`, `config`, `json`, `file`, `git`, or a class name. File/JSON/config locations are configurable. Git deterministically uses the latest tag reachable from `HEAD` (`git describe --tags --abbrev=0`) and strips a configured prefix; missing Git metadata fails clearly without shell interpolation.
 
-You may keep the `api: __DIR__.'/../routes/api.php'` entry when the application intentionally has additional, unversioned API routes in that file. Evolver's versioned files, such as `routes/api/v1.php`, must remain separate to avoid duplicate route registration.
-
-Controllers and other route handlers may resolve the request-scoped context:
+Custom classes are container-resolved and implement:
 
 ```php
-use Infinity\Evolver\Api\ApiVersionContext;
+use Infinity\Evolver\Contracts\ApplicationVersionResolver;
 
-public function __invoke(ApiVersionContext $context): array
+final class ReleaseVersion implements ApplicationVersionResolver
 {
-    return ['api_version' => $context->version()->value];
+    public function resolve(): ?string { return '3.0.0'; }
 }
 ```
 
-Deprecated versions emit `Deprecation`, `Sunset`, and optional successor `Link` headers. Sunset versions return `410 Gone`; malformed and unsupported versions return stable JSON errors. Unknown routes within a supported version return a stable `api_route_not_found` error.
+Set `versioning.application.resolver` to `ReleaseVersion::class`.
 
-Inspect configured lifecycle states with:
+## API routing
 
-```bash
-php artisan evolver:api-status
+```php
+Route::apiVersion('v1', function (): void {
+    Route::get('/products/{product}', ProductController::class);
+});
+Route::apiVersion('v2', base_path('routes/api/v2.php'), ['api', 'auth:sanctum']);
 ```
 
-The URL resolver implements `ApiVersionResolver`, allowing applications to replace URL negotiation later without changing the registry, lifecycle, or request-context APIs.
+URL mode exposes `/api/v1/products`. Header mode accepts `/api/products` plus `X-API-Version: v2`; global middleware rewrites only the managed API base path before matching the ordinary internal `/api/v2/products` route. It preserves method, headers, body, query string, parameters, and the original public URI in `_evolver_external_uri`. Direct access to configured internal prefixes is rejected in header mode. Native controller dispatch, binding, middleware, authentication, authorization, named URLs, and route caching remain in use.
 
-## Deploying and transactions
+## Facade
 
-```bash
-php artisan evolver:deploy
+```php
+use Infinity\Evolver\Facades\Evolver;
+
+$application = Evolver::applicationVersion();
+$requestedApi = Evolver::apiVersion(request());
+$status = app(Infinity\Evolver\EvolverManager::class)->deployment->status();
 ```
 
-Pending actions run sequentially in planned order and execution stops at the first exception. Only successful, committed executions receive an Evolution record. A unique action identity prevents duplicate records.
+## Database persistence and upgrading to v3
 
-`evolver.transactions.mode` accepts:
+Rows contain `action_id`, checksum, UUID batch, target version, duration, and execution time with uniqueness/indexes for integrity. V3 is a fresh PHP API: convert old actions from `handle()` to `up()` and add `down()` where reversible.
 
-- `none`: the package opens no transaction. Earlier action work and records remain after a later failure; the failed action may already have produced partial side effects.
-- `per_action`: each action and its Evolution record share a transaction. Earlier actions remain committed; the failed action's work on Laravel's default connection rolls back.
-- `entire_run`: every current-run action and record shares one transaction. Any failure rolls all of them back and reports no current-run action as committed.
+The v3 repository and migration deliberately retain the existing `evolutions` column names (`batch_id`, `target_version`, `ran_at`). Do not drop this table during upgrade: existing rows remain authoritative and prevent historical one-time actions from running again. Back up the database, deploy converted action files with unchanged identity filenames, publish the new configuration with `php artisan vendor:publish --tag=evolver-config`, and run migrations normally. Do not run `evolver:install` when upgrading: it would publish a second migration that creates `evolutions`.
 
-These transaction guarantees apply only to writes using the connection selected by `evolver.database.connection`. Filesystem changes, network/API calls, queues, cache, mail, external services, and writes on other database connections are not rolled back. Avoid irreversible external effects when database rollback semantics are required.
-
-## Development
+## Testing
 
 ```bash
 composer test
 composer lint
+composer format
 composer validate --no-check-publish
 ```
 
+The suite uses Pest and Orchestra Testbench. `composer lint` checks formatting,
+static analysis, and Rector without modifying files; `composer format` applies
+Pint formatting fixes.
+
 ## License
 
-The MIT License. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).
