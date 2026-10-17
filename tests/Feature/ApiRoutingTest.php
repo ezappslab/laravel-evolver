@@ -76,3 +76,12 @@ it('renders header-mode rejections through the exception handler', function (): 
     $this->getJson('/api/users', ['X-API-Version' => 'v9'])->assertNotFound()->assertJson(['message' => 'The requested API version is unsupported.']);
     $this->getJson('/api/v2/users', ['X-API-Version' => 'v2'])->assertNotFound()->assertJsonStructure(['message']);
 });
+
+it('validates URL-versioned requests against the supported versions', function (): void {
+    config()->set('evolver.versioning.api.resolver', 'url');
+    config()->set('evolver.versioning.api.versions', ['v1']);
+    Route::apiVersion('v1', fn () => Route::get('/users', fn (Request $request) => $request->attributes->get('_evolver_api_version').'|'.app(ApiVersionContext::class)->get()), []);
+
+    $this->get('/api/v1/users')->assertOk()->assertSee('v1|v1');
+    $this->getJson('/api/v9/users')->assertNotFound()->assertJson(['message' => 'The requested API version is unsupported.']);
+});

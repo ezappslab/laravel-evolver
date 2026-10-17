@@ -3,7 +3,11 @@
 declare(strict_types=1);
 
 use Illuminate\Cache\ArrayStore;
+use Illuminate\Cache\Repository;
+use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Contracts\Cache\LockProvider;
+use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Contracts\Cache\Store;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Infinity\Evolver\Deployment\Action;
@@ -129,4 +133,33 @@ it('rejects concurrent deployment execution', function (): void {
     } finally {
         $lock->release();
     }
+});
+
+it('commits every action together in batch transaction mode', function (): void {
+    config()->set('evolver.transactions.mode', 'batch');
+    $fake = Evolver::fake(['001_first' => new RecordedAction('first'), '002_second' => new RecordedAction('second')]);
+
+    expect(app(DeploymentManager::class)->deploy()->completed)->toBe(['001_first', '002_second'])
+        ->and(ActionLog::entries())->toBe(['first.up', 'second.up']);
+    $fake->assertExecuted('001_first', '002_second');
+});
+
+it('reports lock timeouts without releasing a lock it never acquired', function (): void {
+    $lock = Mockery::mock(Lock::class);
+    $lock->shouldReceive('get')->once()->andThrow(new LockTimeoutException);
+    $lock->shouldNotReceive('release');
+    $locks = Mockery::mock(LockProvider::class);
+    $locks->shouldReceive('lock')->once()->with('evolver:deployment', 300)->andReturn($lock);
+    app()->instance(EvolverServiceProvider::LOCK_PROVIDER, $locks);
+    app()->forgetInstance(DeploymentManager::class);
+
+    expect(fn () => app(DeploymentManager::class)->deploy())->toThrow(LockException::class, 'Timed out waiting for the Evolver deployment lock.');
+});
+
+it('rejects cache stores without atomic lock support', function (): void {
+    Cache::extend('evolver_unlockable', fn (): Repository => Cache::repository(Mockery::mock(Store::class)));
+    config()->set('cache.stores.evolver_testing', ['driver' => 'evolver_unlockable']);
+    config()->set('evolver.lock.store', 'evolver_testing');
+
+    expect(fn () => app(EvolverServiceProvider::LOCK_PROVIDER))->toThrow(LogicException::class, 'The cache store must support atomic locks.');
 });

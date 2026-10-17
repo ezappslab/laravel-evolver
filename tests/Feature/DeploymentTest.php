@@ -191,3 +191,12 @@ it('caches only a confirmed history table', function (): void {
     Schema::drop('evolutions');
     expect(fn () => $repository->latestBatch())->toThrow(QueryException::class);
 });
+
+it('refuses to roll back actions changed since deployment', function (): void {
+    $fake = Evolver::fake(['001_first' => new RecordedAction('first')]);
+    app(DeploymentManager::class)->deploy();
+    $fake->touch('001_first');
+
+    expect(fn () => app(DeploymentManager::class)->rollback())->toThrow(ActionChangedException::class, 'Executed action [001_first] changed; rollback cannot continue.')
+        ->and(ActionLog::entries())->toBe(['first.up']);
+});

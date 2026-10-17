@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Process;
 use Infinity\Evolver\Contracts\ApplicationVersionResolver;
 use Infinity\Evolver\Exceptions\VersionResolutionException;
+use Infinity\Evolver\Facades\Evolver;
 use Infinity\Evolver\Versioning\Resolvers\ConfigResolver;
 use Infinity\Evolver\Versioning\Resolvers\FileResolver;
 use Infinity\Evolver\Versioning\Resolvers\GitTagResolver;
@@ -77,3 +79,19 @@ it('validates application versions with one shared format', function (string $ve
     ['latest', false],
     ['1.0 ', false],
 ]);
+
+it('rejects custom resolver classes without the resolver contract', function (): void {
+    config()->set('evolver.versioning.application.resolver', stdClass::class);
+
+    expect(fn () => app(VersionManager::class)->application())->toThrow(VersionResolutionException::class, 'The custom application resolver does not implement the required contract.');
+});
+
+it('exposes application and API versions through the facade', function (): void {
+    config()->set('app.version', '1.2.0');
+    config()->set('evolver.versioning.application.resolver', 'config');
+    app()->instance('request', Request::create('/api/v4/users'));
+
+    expect(Evolver::applicationVersion())->toBe('1.2.0')
+        ->and(Evolver::apiVersion(Request::create('/api/v3/users')))->toBe('v3')
+        ->and(Evolver::apiVersion())->toBe('v4');
+});
